@@ -1,7 +1,11 @@
 package lex.folio.app;
 
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.utils.Disposable;
 import imgui.ImGui;
+import imgui.ImGuiIO;
+import imgui.flag.ImGuiConfigFlags;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
 import org.lwjgl.glfw.GLFW;
@@ -14,6 +18,7 @@ public class ImGuiBackend implements Disposable {
     /** Must be created after the GL context exists, i.e. in ApplicationListener.create(). */
     public ImGuiBackend() {
         ImGui.createContext();
+        configureIo();
         long windowHandle = GLFW.glfwGetCurrentContext();
         platform.init(windowHandle, true);
         renderer.init("#version 150");
@@ -35,5 +40,14 @@ public class ImGuiBackend implements Disposable {
         renderer.shutdown();
         platform.shutdown();
         ImGui.destroyContext();
+    }
+
+    private void configureIo() {
+        ImGuiIO io = ImGui.getIO();
+        io.addConfigFlags(ImGuiConfigFlags.DockingEnable);
+
+        FileHandle layoutFile = Gdx.files.external(".folio/layout.ini");
+        layoutFile.parent().mkdirs();
+        io.setIniFilename(layoutFile.file().getAbsolutePath());
     }
 }
