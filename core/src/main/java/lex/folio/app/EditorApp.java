@@ -3,19 +3,22 @@ package lex.folio.app;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.utils.ScreenUtils;
 import imgui.ImGui;
+import lex.folio.scene.SceneCamera;
 import lex.folio.scene.SceneRenderer;
 import lex.folio.ui.ScenePanel;
 
 public class EditorApp extends ApplicationAdapter {
     private ImGuiBackend imGui;
+    private SceneCamera sceneCamera;
     private SceneRenderer sceneRenderer;
     private ScenePanel scenePanel;
 
     @Override
     public void create() {
         imGui = new ImGuiBackend();
-        sceneRenderer = new SceneRenderer();
-        scenePanel = new ScenePanel(sceneRenderer);
+        sceneCamera = new SceneCamera();
+        sceneRenderer = new SceneRenderer(sceneCamera);
+        scenePanel = new ScenePanel(sceneRenderer, sceneCamera);
     }
 
     @Override
