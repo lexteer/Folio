@@ -1,0 +1,56 @@
+package lex.folio.model;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+
+public class Room {
+    private String name;
+    private float anchorX;
+    private float anchorY;
+    private int nextId = 1;
+    private final List<Layer<?>> layers = new ArrayList<>();
+    private final List<Layer<?>> readOnlyLayers = Collections.unmodifiableList(layers);
+
+    public Room(String name) {
+        setName(name);
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = Objects.requireNonNull(name, "name");
+    }
+
+    public float getAnchorX() {
+        return anchorX;
+    }
+
+    public float getAnchorY() {
+        return anchorY;
+    }
+
+    public void setAnchor(float anchorX, float anchorY) {
+        this.anchorX = anchorX;
+        this.anchorY = anchorY;
+    }
+
+    public int createId() {
+        return nextId++;
+    }
+
+    public List<Layer<?>> getLayers() {
+        return readOnlyLayers;
+    }
+
+    public void addLayer(Layer<?> layer) {
+        layers.add(Objects.requireNonNull(layer, "layer"));
+    }
+
+    public void removeLayer(Layer<?> layer) {
+        layers.remove(layer);
+    }
+}
