@@ -1,0 +1,19 @@
+[compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
+eclipse.project.name = appName + '-core'
+
+dependencies {
+  api "com.badlogicgames.gdx:gdx:$gdxVersion"
+  api "io.github.spair:imgui-java-binding:$imguiVersion"
+
+  api("io.github.spair:imgui-java-lwjgl3:$imguiVersion") {
+    exclude group: 'org.lwjgl'
+  }
+
+  if(enableGraalNative == 'true') {
+    implementation "io.github.berstanio:gdx-svmhelper-annotations:$graalHelperVersion"
+  }
+}
+
+jar {
+  duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
