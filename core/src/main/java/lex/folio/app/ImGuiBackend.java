@@ -15,6 +15,9 @@ public class ImGuiBackend implements Disposable {
     private final ImGuiImplGlfw platform = new ImGuiImplGlfw();
     private final ImGuiImplGl3 renderer = new ImGuiImplGl3();
 
+    private final FileHandle layoutFile = Gdx.files.external(".folio/layout.ini");
+    private final boolean hadSavedLayout = layoutFile.exists();
+
     /** Must be created after the GL context exists, i.e. in ApplicationListener.create(). */
     public ImGuiBackend() {
         ImGui.createContext();
@@ -49,5 +52,9 @@ public class ImGuiBackend implements Disposable {
         FileHandle layoutFile = Gdx.files.external(".folio/layout.ini");
         layoutFile.parent().mkdirs();
         io.setIniFilename(layoutFile.file().getAbsolutePath());
+    }
+
+    public boolean hadSavedLayout() {
+        return hadSavedLayout;
     }
 }

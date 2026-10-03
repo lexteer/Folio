@@ -13,7 +13,7 @@ import lex.folio.scene.Selection;
 import lex.folio.scene.SpritePicker;
 
 public class ScenePanel {
-    private static final String TITLE = "Scene";
+    public static final String TITLE = "Scene";
     private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
     private static final float ZOOM_STEP = 1.15f;
 
