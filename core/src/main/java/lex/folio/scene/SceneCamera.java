@@ -7,7 +7,7 @@ import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 
 public class SceneCamera {
-    private static final float SCREEN_PIXELS_PER_METER = 64f; // (view at 100% zoom) change later to the projects PPM
+    private final float screenPixelsPerMeter;
     private static final float MIN_ZOOM = 0.02f;
     private static final float MAX_ZOOM = 50f;
 
@@ -15,11 +15,15 @@ public class SceneCamera {
     private int screenWidth;
     private int screenHeight;
 
+    public SceneCamera(float screenPixelsPerMeter) {
+        this.screenPixelsPerMeter = screenPixelsPerMeter;
+    }
+
     public void setScreenSize(int width, int height) {
         screenWidth = width;
         screenHeight = height;
-        camera.viewportWidth = width / SCREEN_PIXELS_PER_METER;
-        camera.viewportHeight = height / SCREEN_PIXELS_PER_METER;
+        camera.viewportWidth = width / screenPixelsPerMeter;
+        camera.viewportHeight = height / screenPixelsPerMeter;
         camera.update();
     }
 
@@ -44,7 +48,16 @@ public class SceneCamera {
         float metersPerPixel = getMetersPerScreenPixel();
         float worldX = camera.position.x + (screenX - screenWidth / 2f) * metersPerPixel;
         float worldY = camera.position.y - (screenY - screenHeight / 2f) * metersPerPixel;
+
         return new Vector2(worldX, worldY);
+    }
+
+    public Vector2 worldToScreen(float worldX, float worldY) {
+        float metersPerPixel = getMetersPerScreenPixel();
+        float screenX = screenWidth / 2f + (worldX - camera.position.x) / metersPerPixel;
+        float screenY = screenHeight / 2f - (worldY - camera.position.y) / metersPerPixel;
+
+        return new Vector2(screenX, screenY);
     }
 
     public Rectangle getVisibleArea() {
@@ -57,7 +70,7 @@ public class SceneCamera {
         return camera.combined;
     }
 
-    private float getMetersPerScreenPixel() {
-        return camera.zoom / SCREEN_PIXELS_PER_METER;
+    public float getMetersPerScreenPixel() {
+        return camera.zoom / screenPixelsPerMeter;
     }
 }
