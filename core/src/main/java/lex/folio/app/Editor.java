@@ -2,8 +2,6 @@ package lex.folio.app;
 
 import com.badlogic.gdx.utils.Disposable;
 import imgui.ImGui;
-import imgui.ImVec2;
-import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiWindowFlags;
 import lex.folio.model.Project;
 import lex.folio.project.ProjectStorage;
@@ -16,9 +14,10 @@ import java.util.List;
 /** The editor itself: owns the main menu and the open project, if any, and draws them every frame. */
 final class Editor implements Disposable {
     private static final String ERROR_POPUP = "Project error";
-    private static final String HINT = "Use File > New Project or File > Open Project to get started.";
+    private static final String WELCOME_POPUP = "Welcome to Folio";
 
     private final NativeFileDialog fileDialog = new NativeFileDialog();
+    private final NewProjectDialog newProjectDialog = new NewProjectDialog(fileDialog, this::createProject);
     private ProjectSession session;
     private String error;
 
@@ -26,10 +25,12 @@ final class Editor implements Disposable {
         drawMainMenu();
         if (session != null) {
             session.draw();
-        } else {
-            drawHint();
         }
+        newProjectDialog.draw();
         drawErrorPopup();
+        if (session == null && error == null && !newProjectDialog.isOpen()) {
+            drawWelcomePopup();
+        }
     }
 
     private void drawMainMenu() {
@@ -38,22 +39,41 @@ final class Editor implements Disposable {
         if (ImGui.beginMenu("File")) {
             boolean enabled = !fileDialog.isOpen();
             if (ImGui.menuItem("New Project...", "", false, enabled)) {
-                fileDialog.chooseFolder("Choose a folder for the new project", this::createProject);
+                newProjectDialog.open();
             }
             if (ImGui.menuItem("Open Project...", "", false, enabled)) {
-                fileDialog.chooseFolder("Open a Folio project folder", this::openProject);
+                chooseProjectToOpen();
             }
             ImGui.endMenu();
         }
         ImGui.endMainMenuBar();
     }
 
-    private void drawHint() {
-        ImVec2 center = ImGui.getMainViewport().getCenter();
-        ImVec2 size = new ImVec2();
-        ImGui.calcTextSize(size, HINT);
-        ImGui.getBackgroundDrawList().addText(center.x - size.x / 2, center.y - size.y / 2,
-            ImGui.getColorU32(ImGuiCol.TextDisabled), HINT);
+    /** Shown instead of a blank editor while no project is open. */
+    private void drawWelcomePopup() {
+        if (!ImGui.isPopupOpen(WELCOME_POPUP)) {
+            ImGui.openPopup(WELCOME_POPUP);
+        }
+        if (!ImGui.beginPopupModal(WELCOME_POPUP, ImGuiWindowFlags.AlwaysAutoResize)) return;
+
+        ImGui.text("Create a new project or open an existing one.");
+        ImGui.spacing();
+
+        ImGui.beginDisabled(fileDialog.isOpen());
+        if (ImGui.button("New Project...")) {
+            ImGui.closeCurrentPopup();
+            newProjectDialog.open();
+        }
+        ImGui.sameLine();
+        if (ImGui.button("Open Project...")) {
+            chooseProjectToOpen();
+        }
+        ImGui.endDisabled();
+        ImGui.endPopup();
+    }
+
+    private void chooseProjectToOpen() {
+        fileDialog.chooseFolder("Open a Folio project folder", this::openProject);
     }
 
     private void drawErrorPopup() {
@@ -70,23 +90,19 @@ final class Editor implements Disposable {
         }
     }
 
-    private void createProject(Path folder) {
-        load(() -> ProjectStorage.create(folder));
+    private void createProject(Path parentFolder, String name, float pixelsPerMeter) throws IOException {
+        show(ProjectStorage.create(parentFolder, name, pixelsPerMeter));
     }
 
     private void openProject(Path folder) {
-        load(() -> ProjectStorage.open(folder));
-    }
-
-    private void load(ProjectLoader loader) {
-        Project project;
         try {
-            project = loader.load();
+            show(ProjectStorage.open(folder));
         } catch (IOException e) {
             error = e.getMessage();
-            return;
         }
+    }
 
+    private void show(Project project) {
         if (session != null) session.dispose();
         session = new ProjectSession(project);
     }
@@ -98,9 +114,5 @@ final class Editor implements Disposable {
     @Override
     public void dispose() {
         if (session != null) session.dispose();
-    }
-
-    private interface ProjectLoader {
-        Project load() throws IOException;
     }
 }

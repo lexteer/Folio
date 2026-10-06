@@ -14,23 +14,26 @@ import java.util.Properties;
 public final class ProjectStorage {
     public static final String FILE_NAME = "folio.project";
     private static final String PIXELS_PER_METER_KEY = "pixelsPerMeter";
-    private static final float DEFAULT_PIXELS_PER_METER = 100f;
+    public static final float DEFAULT_PIXELS_PER_METER = 100f;
 
     private ProjectStorage() {
     }
 
-    /** Turns {@code folder} (created if missing) into a new, empty project. */
-    public static Project create(Path folder) throws IOException {
-        Path file = folder.resolve(FILE_NAME);
-        if (Files.exists(file)) {
-            throw new IOException("This folder already contains a project. Use Open Project instead.");
+    /** Creates a new project in a new folder called {@code name} inside {@code parentFolder}. */
+    public static Project create(Path parentFolder, String name, float pixelsPerMeter) throws IOException {
+        Path folder = parentFolder.resolve(name);
+        if (Files.exists(folder)) {
+            throw new IOException("\"" + name + "\" already exists in " + parentFolder + ".");
         }
 
-        Project project = new Project(folder, DEFAULT_PIXELS_PER_METER);
+        Project project;
+        try {
+            project = new Project(folder, pixelsPerMeter);
+        } catch (IllegalArgumentException e) {
+            throw new IOException(e.getMessage());
+        }
         Files.createDirectories(project.getAssetsFolder());
-        write(file, project);
-
-        AssetFolderScanner.addAssetsTo(project);
+        write(folder.resolve(FILE_NAME), project);
         return project;
     }
 
