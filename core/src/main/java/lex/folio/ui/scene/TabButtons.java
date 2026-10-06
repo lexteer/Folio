@@ -34,7 +34,7 @@ final class TabButtons {
         float diameter = closeDiameter();
         float radius = diameter / 2f;
         float x = ImGui.getItemRectMaxX() - ImGui.getStyle().getFramePaddingX() - radius;
-        float y = (ImGui.getItemRectMinY() + ImGui.getItemRectMaxY()) / 2f;
+        float y = textCenterY();
         boolean hovered = ImGui.isItemHovered() && isMouseWithin(x, y, radius);
 
         ImDrawList draw = ImGui.getWindowDrawList();
@@ -66,11 +66,9 @@ final class TabButtons {
         boolean clicked = ImGui.tabItemButton(ADD_LABEL, ImGuiTabItemFlags.Trailing | ImGuiTabItemFlags.NoTooltip);
         ImGui.popStyleColor(4);
 
-        float width = ImGui.getItemRectMaxX() - ImGui.getItemRectMinX();
-        float height = ImGui.getItemRectMaxY() - ImGui.getItemRectMinY();
         float x = (ImGui.getItemRectMinX() + ImGui.getItemRectMaxX()) / 2f;
-        float y = (ImGui.getItemRectMinY() + ImGui.getItemRectMaxY()) / 2f;
-        float radius = Math.min(width, height) / 2f - 1f;
+        float y = textCenterY();
+        float radius = ImGui.getFontSize() / 2f;
 
         ImDrawList draw = ImGui.getWindowDrawList();
         draw.addCircleFilled(x, y, radius, ImGui.isItemHovered() ? hovering : resting);
@@ -78,6 +76,11 @@ final class TabButtons {
         draw.addLine(x - arm, y, x + arm, y, textColor, 1.2f);
         draw.addLine(x, y - arm, x, y + arm, textColor, 1.2f);
         return clicked;
+    }
+
+    /** The vertical middle of the text of the item just submitted, which is not the middle of its whole rectangle. */
+    private static float textCenterY() {
+        return ImGui.getItemRectMinY() + ImGui.getStyle().getFramePaddingY() + ImGui.getFontSize() / 2f;
     }
 
     private static boolean isMouseWithin(float x, float y, float radius) {

@@ -63,6 +63,9 @@ final class Editor implements Disposable {
                 leaveProject(this::chooseProjectToOpen);
             }
             ImGui.separator();
+            if (ImGui.menuItem("Open Room...", "", false, enabled && session != null)) {
+                chooseRoomToOpen();
+            }
             if (ImGui.menuItem("Save", "Ctrl+S", false, session != null && session.canSaveActiveRoom())) {
                 session.saveActiveRoom();
             }
@@ -105,6 +108,12 @@ final class Editor implements Disposable {
 
     private void chooseProjectToOpen() {
         fileDialog.chooseFolder("Open a Folio project folder", this::openProject);
+    }
+
+    private void chooseRoomToOpen() {
+        fileDialog.chooseFile("Open a room", session.getRoomsFolder(), "*.json", "Folio rooms", file -> {
+            if (session != null) session.openRoomFile(file);
+        });
     }
 
     private void drawErrorPopup() {

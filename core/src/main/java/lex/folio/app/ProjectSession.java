@@ -39,6 +39,7 @@ import java.util.function.Consumer;
 
 /** Everything that exists while one project is open: creates the parts, wires them together and draws them. */
 final class ProjectSession implements Disposable {
+    private final RoomStorage roomStorage;
     private final AssetLibrary assetLibrary;
     private final SceneRenderer sceneRenderer;
     private final ScenePanel scenePanel;
@@ -46,9 +47,10 @@ final class ProjectSession implements Disposable {
     private final AssetsPanel assetsPanel;
     private final EditorShortcuts shortcuts;
     private final Selection selection;
+    private final Consumer<String> errorSink;
 
     ProjectSession(Project project, Consumer<String> errorSink) throws IOException {
-        RoomStorage roomStorage = new RoomStorage(project);
+        roomStorage = new RoomStorage(project);
         List<Room> savedRooms = roomStorage.loadAll();
 
         assetLibrary = new AssetLibrary(project);
@@ -73,6 +75,7 @@ final class ProjectSession implements Disposable {
         if (savedRooms.isEmpty()) scenePanel.openNewRoom(createRoom("main"));
         commandStack.setChangeListener(scenePanel::roomsChanged);
         this.selection = selection;
+        this.errorSink = errorSink;
         inspectorPanel = new InspectorPanel(selection, new SpriteInspector(commandStack));
         assetsPanel = AssetsPanel.create(project, assetLibrary, commandStack, toolState);
         shortcuts = new EditorShortcuts(commandStack, tools, toolState, scenePanel::saveActiveRoom);
@@ -110,6 +113,31 @@ final class ProjectSession implements Disposable {
         if (clicked && !scenePanel.isHovered() && !inspectorPanel.isHovered()) {
             selection.clear();
         }
+    }
+
+    Path getRoomsFolder() {
+        return roomStorage.getFolder();
+    }
+
+    /** Opens a room file chosen by the user, which has to be one of this project's rooms. */
+    void openRoomFile(Path file) {
+        try {
+            if (!roomStorage.contains(file)) {
+                errorSink.accept(notThisProjectsRoomMessage(file));
+                return;
+            }
+            scenePanel.openSavedRoom(roomStorage.load(file));
+        } catch (IOException e) {
+            errorSink.accept(e.getMessage());
+        }
+    }
+
+    private static String notThisProjectsRoomMessage(Path file) {
+        Path owner = RoomStorage.findProjectOf(file);
+        if (owner == null) return "That file is not a room of this project.";
+
+        return "That room belongs to another project (" + owner.getFileName()
+            + "). Open that project first if you want to open that room.";
     }
 
     boolean canSaveActiveRoom() {

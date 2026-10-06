@@ -108,6 +108,19 @@ public class ScenePanel {
         return activeTab != null && activeTab.isUnsaved();
     }
 
+    /** Shows a room that was loaded from storage, or the tab of that room if it is open already. */
+    public void openSavedRoom(Room room) {
+        for (RoomTab tab : tabs) {
+            if (tab.getRoom().getName().equalsIgnoreCase(room.getName())) {
+                tabToSelect = tab;
+                return;
+            }
+        }
+        RoomTab tab = addTab(room);
+        tab.markSaved(storage.snapshot(room));
+        tabToSelect = tab;
+    }
+
     public void saveActiveRoom() {
         if (canSaveActiveRoom()) save(activeTab);
     }
@@ -349,7 +362,12 @@ public class ScenePanel {
         ImGui.setCursorScreenPos(renameX, renameY);
         ImGui.setNextItemWidth(renameWidth);
         if (!renameActive) ImGui.setKeyboardFocusHere();
+        // No background of its own: the tab is already there, with its rounded corners.
+        ImGui.pushStyleColor(ImGuiCol.FrameBg, 0);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, 0);
+        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, 0);
         ImGui.inputText("##RenameRoom", renameText, ImGuiInputTextFlags.AutoSelectAll | ImGuiInputTextFlags.EnterReturnsTrue);
+        ImGui.popStyleColor(3);
         if (ImGui.isItemActive()) {
             renameActive = true;
         } else if (renameActive) {

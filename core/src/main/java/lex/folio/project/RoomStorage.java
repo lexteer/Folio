@@ -33,13 +33,36 @@ public final class RoomStorage {
 
         List<Room> rooms = new ArrayList<>();
         for (Path file : files) {
-            try {
-                rooms.add(RoomJson.read(Files.readString(file, StandardCharsets.UTF_8)));
-            } catch (IOException e) {
-                throw new IOException("Could not read room " + file.getFileName() + ": " + e.getMessage(), e);
-            }
+            rooms.add(load(file));
         }
         return rooms;
+    }
+
+    public Path getFolder() {
+        return folder;
+    }
+
+    /** Loads one room file. */
+    public Room load(Path file) throws IOException {
+        try {
+            return RoomJson.read(Files.readString(file, StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            throw new IOException("Could not read room " + file.getFileName() + ": " + e.getMessage(), e);
+        }
+    }
+
+    /** Whether the file is one of the rooms of this project. */
+    public boolean contains(Path file) throws IOException {
+        Path parent = file.toAbsolutePath().getParent();
+        return parent != null && Files.isDirectory(folder) && Files.isSameFile(parent, folder);
+    }
+
+    /** The folder of the project that has this room file in its rooms folder, or null if there is none. */
+    public static Path findProjectOf(Path roomFile) {
+        Path roomsFolder = roomFile.toAbsolutePath().getParent();
+        Path projectFolder = roomsFolder == null ? null : roomsFolder.getParent();
+        if (projectFolder == null || !Files.isRegularFile(projectFolder.resolve(ProjectStorage.FILE_NAME))) return null;
+        return projectFolder;
     }
 
     /**
