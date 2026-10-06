@@ -48,8 +48,12 @@ final class RoomTab {
         unsaved = !currentSnapshot.equals(savedSnapshot);
     }
 
-    /** The label ImGui shows for the tab. The part after ### is the identity, so renaming a room keeps the tab. */
-    String getLabel() {
-        return room.getName() + "###room" + id;
+    /**
+     * The label ImGui shows for the tab. The part after ### is the identity, so renaming a room keeps the tab.
+     *
+     * @param padding trailing space that keeps the name clear of the close button
+     */
+    String getLabel(String padding) {
+        return room.getName() + padding + "###room" + id;
     }
 }

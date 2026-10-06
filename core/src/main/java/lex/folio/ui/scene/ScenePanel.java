@@ -9,7 +9,6 @@ import imgui.flag.ImGuiTabBarFlags;
 import imgui.flag.ImGuiTabItemFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.internal.ImGui;
-import imgui.type.ImBoolean;
 import imgui.type.ImString;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.internal.ImGuiDockNode;
@@ -32,11 +31,9 @@ import java.util.function.Function;
  */
 public class ScenePanel {
     public static final String TITLE = "Scene";
-    private static final String NEW_ROOM_BUTTON = "+";
     private static final String ROOM_NAME_PREFIX = "Room ";
     private static final String UNSAVED_POPUP = "Unsaved changes";
     private static final int RENAME_MAX_LENGTH = 128;
-    private static final float RENAME_MIN_WIDTH = 100f;
     private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse
         | ImGuiWindowFlags.NoCollapse;
     private static final int TAB_BAR_FLAGS = ImGuiTabBarFlags.Reorderable | ImGuiTabBarFlags.FittingPolicyScroll;
@@ -283,7 +280,7 @@ public class ScenePanel {
             for (RoomTab tab : List.copyOf(tabs)) {
                 if (!drawTab(tab)) tabToClose = tab;
             }
-            addRoom = ImGui.tabItemButton(NEW_ROOM_BUTTON, ImGuiTabItemFlags.Trailing | ImGuiTabItemFlags.NoTooltip);
+            addRoom = TabButtons.drawAdd();
             ImGui.endTabBar();
         }
         drawRenameInput();
@@ -295,14 +292,14 @@ public class ScenePanel {
         }
     }
 
-    /** Returns false when the close button of the tab was clicked. */
+    /** Returns false when the user asked to close the tab. */
     private boolean drawTab(RoomTab tab) {
         int flags = tab == tabToSelect ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None;
-        if (tab.isUnsaved()) flags |= ImGuiTabItemFlags.UnsavedDocument;
-        ImBoolean open = new ImBoolean(true);
-        boolean selected = ImGui.beginTabItem(tab.getLabel(), open, flags);
+        boolean selected = ImGui.beginTabItem(tab.getLabel(TabButtons.closeButtonPadding()), flags);
         trackRename(tab);
-        if (!selected) return open.get();
+        boolean close = TabButtons.drawClose(tab.isUnsaved());
+        close |= drawTabMenu(tab);
+        if (!selected) return !close;
 
         if (tab == tabToSelect) tabToSelect = null;
         if (tab != activeTab) {
@@ -312,20 +309,36 @@ public class ScenePanel {
         }
         drawContent(tab);
         ImGui.endTabItem();
-        return open.get();
+        return !close;
+    }
+
+    /** The right click menu of the tab just submitted. Returns whether Close was chosen. */
+    private boolean drawTabMenu(RoomTab tab) {
+        if (!ImGui.beginPopupContextItem("##RoomTabMenu")) return false;
+
+        boolean close = false;
+        if (ImGui.menuItem("Rename")) startRename(tab);
+        if (ImGui.menuItem("Save", "", false, tab.isUnsaved())) save(tab);
+        if (ImGui.menuItem("Close")) close = true;
+        ImGui.endPopup();
+        return close;
+    }
+
+    private void startRename(RoomTab tab) {
+        renamingTab = tab;
+        renameText.set(tab.getRoom().getName());
+        renameActive = false;
     }
 
     /** Call right after a tab item: the tab is the last item. Double clicking it starts renaming. */
     private void trackRename(RoomTab tab) {
         if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left)) {
-            renamingTab = tab;
-            renameText.set(tab.getRoom().getName());
-            renameActive = false;
+            startRename(tab);
         }
         if (tab == renamingTab) {
             renameX = ImGui.getItemRectMinX();
             renameY = ImGui.getItemRectMinY();
-            renameWidth = Math.max(RENAME_MIN_WIDTH, ImGui.getItemRectMaxX() - renameX);
+            renameWidth = ImGui.getItemRectMaxX() - renameX;
         }
     }
 
