@@ -3,7 +3,7 @@ package lex.folio.ui.assets;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
-import lex.folio.assets.AssetFolderPath;
+import lex.folio.model.AssetFolderPath;
 
 /** Shows where in the folders the panel is, and lets the user click back to any folder on the way. */
 class AssetPathBar {

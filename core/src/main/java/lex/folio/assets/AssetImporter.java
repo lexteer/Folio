@@ -1,7 +1,7 @@
 package lex.folio.assets;
 
 import com.badlogic.gdx.Gdx;
-import lex.folio.model.ImageAsset;
+import lex.folio.model.AssetFolderPath;
 import lex.folio.model.Project;
 
 import java.io.IOException;
@@ -15,10 +15,12 @@ public class AssetImporter {
 
     private final Project project;
     private final AssetLibrary assetLibrary;
+    private final AssetRegistrar registrar;
 
     public AssetImporter(Project project, AssetLibrary assetLibrary) {
         this.project = project;
         this.assetLibrary = assetLibrary;
+        this.registrar = new AssetRegistrar(project);
     }
 
     public void importFiles(List<Path> paths, String folder) {
@@ -52,19 +54,14 @@ public class AssetImporter {
     }
 
     private void importPngFile(Path file, String folder) {
-        String id = ImageFiles.toAssetId(file);
-        if (project.findAsset(id) != null) {
-            Gdx.app.error(TAG, "Skipping " + file + ": asset id '" + id + "' is already used");
-            return;
-        }
+        String id = registrar.findFreeId(file);
+        if (id == null) return;
 
         String assetPath = AssetFolderPath.join(folder, file.getFileName().toString());
         Path target = project.getAssetsFolder().resolve(assetPath);
         if (!copyFile(file, target)) return;
 
-        ImageAsset asset = new ImageAsset(id, assetPath);
-        project.addAsset(asset);
-        assetLibrary.load(asset);
+        assetLibrary.load(registrar.add(id, assetPath));
     }
 
     private boolean copyFile(Path source, Path target) {

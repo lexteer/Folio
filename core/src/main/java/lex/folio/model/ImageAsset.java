@@ -26,8 +26,7 @@ public final class ImageAsset {
     }
 
     public String getFolder() {
-        int lastSlash = path.lastIndexOf('/');
-        return lastSlash < 0 ? "" : path.substring(0, lastSlash);
+        return AssetFolderPath.getParent(path);
     }
 
     public void setPath(String path) {
@@ -35,6 +34,6 @@ public final class ImageAsset {
     }
 
     public String getFileName() {
-        return path.substring(path.lastIndexOf('/') + 1);
+        return AssetFolderPath.getName(path);
     }
 }
