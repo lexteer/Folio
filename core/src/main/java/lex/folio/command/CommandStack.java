@@ -8,6 +8,13 @@ public class CommandStack {
     private static final int MAX_UNDO_STEPS = 200;
     private final Deque<Command> undoStack = new ArrayDeque<>();
     private final Deque<Command> redoStack = new ArrayDeque<>();
+    private Runnable changeListener = () -> {
+    };
+
+    /** Called after every command that is executed, undone or redone. */
+    public void setChangeListener(Runnable changeListener) {
+        this.changeListener = Objects.requireNonNull(changeListener, "changeListener");
+    }
 
     public void execute(Command command) {
         Objects.requireNonNull(command, "command");
@@ -15,6 +22,7 @@ public class CommandStack {
         undoStack.push(command);
         redoStack.clear();
         dropOldestBeyondLimit();
+        changeListener.run();
     }
 
     private void dropOldestBeyondLimit() {
@@ -37,6 +45,7 @@ public class CommandStack {
         Command command = undoStack.pop();
         command.undo();
         redoStack.push(command);
+        changeListener.run();
     }
 
     public void redo() {
@@ -45,5 +54,6 @@ public class CommandStack {
         Command command = redoStack.pop();
         command.execute();
         undoStack.push(command);
+        changeListener.run();
     }
 }

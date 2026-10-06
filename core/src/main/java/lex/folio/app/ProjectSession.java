@@ -8,6 +8,7 @@ import lex.folio.command.CommandStack;
 import lex.folio.model.Project;
 import lex.folio.model.Room;
 import lex.folio.model.SpriteLayer;
+import lex.folio.project.RoomStorage;
 import lex.folio.scene.BoxSelect;
 import lex.folio.scene.Selection;
 import lex.folio.scene.render.SceneRenderer;
@@ -29,10 +30,12 @@ import lex.folio.ui.scene.SceneOverlay;
 import lex.folio.ui.scene.ScenePanel;
 import lex.folio.ui.scene.SceneViewport;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /** Everything that exists while one project is open: creates the parts, wires them together and draws them. */
 final class ProjectSession implements Disposable {
@@ -44,7 +47,10 @@ final class ProjectSession implements Disposable {
     private final EditorShortcuts shortcuts;
     private final Selection selection;
 
-    ProjectSession(Project project) {
+    ProjectSession(Project project, Consumer<String> errorSink) throws IOException {
+        RoomStorage roomStorage = new RoomStorage(project);
+        List<Room> savedRooms = roomStorage.loadAll();
+
         assetLibrary = new AssetLibrary(project);
         assetLibrary.loadAll();
 
@@ -60,17 +66,19 @@ final class ProjectSession implements Disposable {
         SceneViewport viewport = new SceneViewport();
         sceneRenderer = new SceneRenderer(assetLibrary, spriteGeometry);
 
-        scenePanel = new ScenePanel(List.of(createRoom("main")), project.getPixelsPerMeter(),
-            ProjectSession::createRoom, sceneRenderer, viewport,
+        scenePanel = new ScenePanel(savedRooms, project.getPixelsPerMeter(), ProjectSession::createRoom,
+            roomStorage, errorSink, sceneRenderer, viewport,
             new SceneOverlay(viewport, spriteGeometry, selection, boxSelect, toolState),
             new SceneInput(viewport, tools, spritePlacer), selection);
+        if (savedRooms.isEmpty()) scenePanel.openNewRoom(createRoom("main"));
+        commandStack.setChangeListener(scenePanel::roomsChanged);
         this.selection = selection;
         inspectorPanel = new InspectorPanel(selection, new SpriteInspector(commandStack));
         assetsPanel = AssetsPanel.create(project, assetLibrary, commandStack, toolState);
-        shortcuts = new EditorShortcuts(commandStack, tools, toolState);
+        shortcuts = new EditorShortcuts(commandStack, tools, toolState, scenePanel::saveActiveRoom);
     }
 
-    /** Rooms are not saved yet, so every session starts with one empty room. */
+    /** A new room starts with one sprite layer. */
     private static Room createRoom(String name) {
         Room room = new Room(name);
         room.addLayer(new SpriteLayer(room.createId(), "Art"));
@@ -102,6 +110,23 @@ final class ProjectSession implements Disposable {
         if (clicked && !scenePanel.isHovered() && !inspectorPanel.isHovered()) {
             selection.clear();
         }
+    }
+
+    boolean canSaveActiveRoom() {
+        return scenePanel.canSaveActiveRoom();
+    }
+
+    void saveActiveRoom() {
+        scenePanel.saveActiveRoom();
+    }
+
+    boolean hasUnsavedRooms() {
+        return scenePanel.hasUnsavedRooms();
+    }
+
+    /** Asks about each unsaved room, then runs {@code action}, unless the user cancels. */
+    void runWhenNothingIsUnsaved(Runnable action) {
+        scenePanel.runWhenNothingIsUnsaved(action);
     }
 
     void filesDropped(List<Path> files) {

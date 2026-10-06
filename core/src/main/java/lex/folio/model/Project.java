@@ -5,6 +5,7 @@ import java.util.*;
 
 public class Project {
     private static final String ASSETS_FOLDER_NAME = "assets";
+    private static final String ROOMS_FOLDER_NAME = "rooms";
     private final Map<String, ImageAsset> assetsByKey = new LinkedHashMap<>();
     private final Collection<ImageAsset> readOnlyAssets = Collections.unmodifiableCollection(assetsByKey.values());
 
@@ -44,6 +45,10 @@ public class Project {
 
     public Path getAssetsFolder() {
         return rootFolder.resolve(ASSETS_FOLDER_NAME);
+    }
+
+    public Path getRoomsFolder() {
+        return rootFolder.resolve(ROOMS_FOLDER_NAME);
     }
 
     public float getPixelsPerMeter() {

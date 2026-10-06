@@ -13,15 +13,20 @@ final class EditorShortcuts {
     private final CommandStack commandStack;
     private final ToolController tools;
     private final ToolState toolState;
+    private final Runnable save;
 
-    EditorShortcuts(CommandStack commandStack, ToolController tools, ToolState toolState) {
+    EditorShortcuts(CommandStack commandStack, ToolController tools, ToolState toolState, Runnable save) {
         this.commandStack = commandStack;
         this.tools = tools;
         this.toolState = toolState;
+        this.save = save;
     }
 
     void handle() {
         ImGuiIO io = ImGui.getIO();
+        if (io.getKeyCtrl() && !io.getKeyShift() && ImGui.isKeyPressed(ImGuiKey.S)) {
+            save.run();
+        }
         if (io.getWantTextInput()) return;
 
         handleUndoRedo(io);

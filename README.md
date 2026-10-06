@@ -13,7 +13,7 @@ Most classes do one thing; a few "glue" classes wire them together.
 | `model` | Plain project data: `Project`, `Room`, layers, objects, assets. No rendering or UI. |
 | `command` | Undo/redo: `Command`, `CommandStack` and the reusable commands. |
 | `assets` | Loading, importing, searching and moving asset files. |
-| `project` | Creating projects (always in a new folder) and opening them (`ProjectStorage`). |
+| `project` | Creating projects (always in a new folder) and opening them (`ProjectStorage`); saving and loading rooms (`RoomStorage`, one file per room in `rooms/`). |
 | `scene.camera` / `scene.render` | The scene camera, and drawing a room into a texture. |
 | `scene.sprite` | Sprite geometry, picking, placing and dragging. |
 | `scene.tool` | Tools (`SceneTool`) and the `ToolController` that routes input to them. |

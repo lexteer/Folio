@@ -9,15 +9,21 @@ import imgui.flag.ImGuiTabBarFlags;
 import imgui.flag.ImGuiTabItemFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.internal.ImGui;
+import imgui.type.ImBoolean;
 import imgui.internal.ImGuiDockNode;
 import imgui.internal.flag.ImGuiDockNodeFlags;
 import lex.folio.model.Room;
 import lex.folio.scene.Selection;
 import lex.folio.scene.camera.SceneCamera;
+import lex.folio.project.RoomStorage;
 import lex.folio.scene.render.SceneRenderer;
 
+import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
@@ -28,6 +34,7 @@ public class ScenePanel {
     public static final String TITLE = "Scene";
     private static final String NEW_ROOM_BUTTON = "+";
     private static final String ROOM_NAME_PREFIX = "Room ";
+    private static final String UNSAVED_POPUP = "Unsaved changes";
     private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse
         | ImGuiWindowFlags.NoCollapse;
     private static final int TAB_BAR_FLAGS = ImGuiTabBarFlags.Reorderable | ImGuiTabBarFlags.FittingPolicyScroll;
@@ -38,6 +45,8 @@ public class ScenePanel {
     private final List<RoomTab> tabs = new ArrayList<>();
     private final float pixelsPerMeter;
     private final Function<String, Room> roomFactory;
+    private final RoomStorage storage;
+    private final Consumer<String> errorSink;
     private final SceneRenderer renderer;
     private final SceneViewport viewport;
     private final SceneOverlay overlay;
@@ -48,12 +57,19 @@ public class ScenePanel {
     private RoomTab tabToSelect;
     private boolean hovered;
     private boolean movingWindow;
+    private boolean recheckUnsaved;
+    private final Deque<RoomTab> tabsToAskAbout = new ArrayDeque<>();
+    private boolean closeTabsAfterAsking;
+    private Runnable afterAsking;
 
-    public ScenePanel(List<Room> rooms, float pixelsPerMeter, Function<String, Room> roomFactory,
-                      SceneRenderer renderer, SceneViewport viewport, SceneOverlay overlay, SceneInput input,
-                      Selection selection) {
+    /** @param savedRooms rooms that were loaded from storage, so they start out without unsaved changes */
+    public ScenePanel(List<Room> savedRooms, float pixelsPerMeter, Function<String, Room> roomFactory,
+                      RoomStorage storage, Consumer<String> errorSink, SceneRenderer renderer,
+                      SceneViewport viewport, SceneOverlay overlay, SceneInput input, Selection selection) {
         this.pixelsPerMeter = pixelsPerMeter;
         this.roomFactory = roomFactory;
+        this.storage = storage;
+        this.errorSink = errorSink;
         this.renderer = renderer;
         this.viewport = viewport;
         this.overlay = overlay;
@@ -61,8 +77,8 @@ public class ScenePanel {
         this.selection = selection;
         windowClass.setDockNodeFlagsOverrideSet(DOCK_NODE_FLAGS);
 
-        for (Room room : rooms) {
-            addTab(room);
+        for (Room room : savedRooms) {
+            addTab(room).markSaved(storage.snapshot(room));
         }
     }
 
@@ -72,7 +88,67 @@ public class ScenePanel {
         return tab;
     }
 
+    /** Adds a room that exists only in memory until it is saved, and shows it. */
+    public void openNewRoom(Room room) {
+        tabToSelect = addTab(room);
+    }
+
+    /** Call after anything may have changed a room, so the unsaved marks are worked out again. */
+    public void roomsChanged() {
+        recheckUnsaved = true;
+    }
+
+    public boolean canSaveActiveRoom() {
+        return activeTab != null && activeTab.isUnsaved();
+    }
+
+    public void saveActiveRoom() {
+        if (canSaveActiveRoom()) save(activeTab);
+    }
+
+    public boolean hasUnsavedRooms() {
+        return tabs.stream().anyMatch(RoomTab::isUnsaved);
+    }
+
+    /** Asks about each room with unsaved changes, then runs {@code action}. Cancelling anywhere abandons it. */
+    public void runWhenNothingIsUnsaved(Runnable action) {
+        if (!tabsToAskAbout.isEmpty()) return;
+
+        tabs.stream().filter(RoomTab::isUnsaved).forEach(tabsToAskAbout::add);
+        closeTabsAfterAsking = false;
+        afterAsking = action;
+    }
+
+    private boolean save(RoomTab tab) {
+        try {
+            tab.markSaved(storage.save(tab.getRoom()));
+            return true;
+        } catch (IOException e) {
+            errorSink.accept("Could not save room \"" + tab.getRoom().getName() + "\": " + e.getMessage());
+            return false;
+        }
+    }
+
+    private void requestClose(RoomTab tab) {
+        if (!tab.isUnsaved()) {
+            closeTab(tab);
+            return;
+        }
+        tabsToAskAbout.add(tab);
+        closeTabsAfterAsking = true;
+        afterAsking = null;
+    }
+
+    private void closeTab(RoomTab tab) {
+        tabs.remove(tab);
+        if (tab == activeTab) {
+            activeTab = null;
+            selection.clear();
+        }
+    }
+
     public void draw() {
+        refreshUnsavedMarks();
         ImGui.setNextWindowClass(windowClass);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0, 0);
         boolean visible = ImGui.begin(TITLE, WINDOW_FLAGS);
@@ -84,6 +160,50 @@ public class ScenePanel {
             drawTabs();
         }
         ImGui.end();
+        drawUnsavedPrompt();
+    }
+
+    private void refreshUnsavedMarks() {
+        if (!recheckUnsaved) return;
+
+        recheckUnsaved = false;
+        for (RoomTab tab : tabs) {
+            tab.refreshUnsaved(storage.snapshot(tab.getRoom()));
+        }
+    }
+
+    /** Asks, one room at a time, whether to save it. Draws nothing when there is nothing to ask. */
+    private void drawUnsavedPrompt() {
+        RoomTab tab = tabsToAskAbout.peek();
+        if (tab == null) return;
+
+        if (!ImGui.isPopupOpen(UNSAVED_POPUP)) {
+            ImGui.openPopup(UNSAVED_POPUP);
+        }
+        if (!ImGui.beginPopupModal(UNSAVED_POPUP, ImGuiWindowFlags.AlwaysAutoResize)) return;
+
+        ImGui.text("Room \"" + tab.getRoom().getName() + "\" has unsaved changes. Save it?");
+        ImGui.spacing();
+        boolean save = ImGui.button("Save");
+        ImGui.sameLine();
+        boolean discard = ImGui.button("Don't Save");
+        ImGui.sameLine();
+        boolean cancel = ImGui.button("Cancel");
+        if (save || discard || cancel) ImGui.closeCurrentPopup();
+        ImGui.endPopup();
+
+        if (cancel || (save && !save(tab))) {
+            tabsToAskAbout.clear();
+            afterAsking = null;
+        } else if (save || discard) {
+            tabsToAskAbout.remove();
+            if (closeTabsAfterAsking) closeTab(tab);
+            if (tabsToAskAbout.isEmpty() && afterAsking != null) {
+                Runnable action = afterAsking;
+                afterAsking = null;
+                action.run();
+            }
+        }
     }
 
     /** A floating panel has a title bar of its own, which already moves it. */
@@ -132,21 +252,28 @@ public class ScenePanel {
 
     private void drawTabs() {
         boolean addRoom = false;
+        RoomTab tabToClose = null;
         if (ImGui.beginTabBar("RoomTabs", TAB_BAR_FLAGS)) {
-            for (RoomTab tab : tabs) {
-                drawTab(tab);
+            for (RoomTab tab : List.copyOf(tabs)) {
+                if (!drawTab(tab)) tabToClose = tab;
             }
             addRoom = ImGui.tabItemButton(NEW_ROOM_BUTTON, ImGuiTabItemFlags.Trailing | ImGuiTabItemFlags.NoTooltip);
             ImGui.endTabBar();
         }
+        if (tabToClose != null) {
+            requestClose(tabToClose);
+        }
         if (addRoom) {
-            tabToSelect = addTab(roomFactory.apply(newRoomName()));
+            openNewRoom(roomFactory.apply(newRoomName()));
         }
     }
 
-    private void drawTab(RoomTab tab) {
+    /** Returns false when the close button of the tab was clicked. */
+    private boolean drawTab(RoomTab tab) {
         int flags = tab == tabToSelect ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None;
-        if (!ImGui.beginTabItem(tab.getLabel(), flags)) return;
+        if (tab.isUnsaved()) flags |= ImGuiTabItemFlags.UnsavedDocument;
+        ImBoolean open = new ImBoolean(true);
+        if (!ImGui.beginTabItem(tab.getLabel(), open, flags)) return open.get();
 
         if (tab == tabToSelect) tabToSelect = null;
         if (tab != activeTab) {
@@ -156,12 +283,14 @@ public class ScenePanel {
         }
         drawContent(tab);
         ImGui.endTabItem();
+        return open.get();
     }
 
     private String newRoomName() {
         for (int number = tabs.size() + 1; ; number++) {
             String name = ROOM_NAME_PREFIX + number;
-            if (tabs.stream().noneMatch(tab -> tab.getRoom().getName().equals(name))) return name;
+            boolean taken = tabs.stream().anyMatch(tab -> tab.getRoom().getName().equals(name)) || storage.exists(name);
+            if (!taken) return name;
         }
     }
 

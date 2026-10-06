@@ -35,6 +35,11 @@ public class EditorApp extends ApplicationAdapter {
         imGui.dispose();
     }
 
+    /** Whether the window may close right now. Unsaved rooms are asked about first, and the app exits afterwards. */
+    public boolean requestClose() {
+        return editor.requestClose();
+    }
+
     public void filesDropped(String[] files) {
         editor.filesDropped(Arrays.stream(files).map(Path::of).toList());
     }

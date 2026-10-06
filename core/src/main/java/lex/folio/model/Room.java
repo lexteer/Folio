@@ -38,6 +38,15 @@ public class Room {
         this.anchorY = anchorY;
     }
 
+    public int getNextId() {
+        return nextId;
+    }
+
+    public void setNextId(int nextId) {
+        if (nextId < 1) throw new IllegalArgumentException("nextId must be positive, was " + nextId);
+        this.nextId = nextId;
+    }
+
     public int createId() {
         return nextId++;
     }

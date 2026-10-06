@@ -10,6 +10,9 @@ final class RoomTab {
     private final Room room;
     private final SceneCamera camera;
     private final int id = nextId++;
+    /** What the room looked like when it was last saved or loaded; null while it was never saved. */
+    private String savedSnapshot;
+    private boolean unsaved = true;
 
     RoomTab(Room room, SceneCamera camera) {
         this.room = room;
@@ -22,6 +25,20 @@ final class RoomTab {
 
     SceneCamera getCamera() {
         return camera;
+    }
+
+    boolean isUnsaved() {
+        return unsaved;
+    }
+
+    void markSaved(String snapshot) {
+        savedSnapshot = snapshot;
+        unsaved = false;
+    }
+
+    /** Compares against the saved state, so undoing back to it makes the tab clean again. */
+    void refreshUnsaved(String currentSnapshot) {
+        unsaved = !currentSnapshot.equals(savedSnapshot);
     }
 
     /** The label ImGui shows for the tab. The part after ### is the identity, so renaming a room keeps the tab. */

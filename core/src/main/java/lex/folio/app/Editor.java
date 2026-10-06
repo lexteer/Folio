@@ -1,5 +1,6 @@
 package lex.folio.app;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.utils.Disposable;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
@@ -61,6 +62,10 @@ final class Editor implements Disposable {
             if (ImGui.menuItem("Open Project...", "", false, enabled)) {
                 chooseProjectToOpen();
             }
+            ImGui.separator();
+            if (ImGui.menuItem("Save", "Ctrl+S", false, session != null && session.canSaveActiveRoom())) {
+                session.saveActiveRoom();
+            }
             ImGui.endMenu();
         }
         ImGui.endMainMenuBar();
@@ -107,6 +112,14 @@ final class Editor implements Disposable {
         }
     }
 
+    /** Returns whether the window may close now. If rooms are unsaved it asks about them first and closes later. */
+    boolean requestClose() {
+        if (session == null || !session.hasUnsavedRooms()) return true;
+
+        session.runWhenNothingIsUnsaved(Gdx.app::exit);
+        return false;
+    }
+
     private void createProject(Path parentFolder, String name, float pixelsPerMeter) throws IOException {
         show(ProjectStorage.create(parentFolder, name, pixelsPerMeter));
     }
@@ -119,9 +132,10 @@ final class Editor implements Disposable {
         }
     }
 
-    private void show(Project project) {
+    private void show(Project project) throws IOException {
+        ProjectSession opened = new ProjectSession(project, message -> error = message);
         if (session != null) session.dispose();
-        session = new ProjectSession(project);
+        session = opened;
         lastProject.save(project.getRootFolder());
     }
 
