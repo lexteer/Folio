@@ -51,6 +51,42 @@ public class AssetFolders {
         asset.setPath(newPath);
     }
 
+    /**
+     * Renames the asset's file and gives the asset the file name as its id. The name has no extension.
+     * Returns why it could not be renamed, or null when it was.
+     */
+    public String renameAsset(ImageAsset asset, String name) {
+        String problem = findNameProblem(asset, name);
+        if (problem != null) return problem;
+
+        String newPath = AssetFolderPath.join(asset.getFolder(), name + ImageFiles.PNG_EXTENSION);
+        Path source = toDiskPath(asset.getPath());
+        Path target = toDiskPath(newPath);
+
+        try {
+            if (Files.exists(target) && !Files.isSameFile(source, target)) {
+                return "There is already a file called \"" + target.getFileName() + "\".";
+            }
+            Files.move(source, target);
+        } catch (IOException e) {
+            Gdx.app.error(TAG, "Could not rename " + source + " to " + target, e);
+            return "Could not rename the file: " + e.getMessage();
+        }
+        asset.setPath(newPath);
+        project.renameAsset(asset, name);
+        return null;
+    }
+
+    private String findNameProblem(ImageAsset asset, String name) {
+        if (name.isEmpty()) return "An asset needs a name.";
+        if (name.matches(".*[\\\\/:*?\"<>|].*")) return "An asset name cannot contain any of \\ / : * ? \" < > |";
+        if (name.endsWith(".") || name.endsWith(" ")) return "An asset name cannot end with a dot or a space.";
+
+        ImageAsset owner = project.findAsset(name);
+        if (owner != null && owner != asset) return "There is already an asset called \"" + name + "\".";
+        return null;
+    }
+
     private Path toDiskPath(String assetsRelativePath) {
         return project.getAssetsFolder().resolve(assetsRelativePath);
     }

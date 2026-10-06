@@ -13,6 +13,8 @@ import lex.folio.ui.common.NativeFileDialog;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /** The window for browsing, searching, importing and organizing the project's assets. */
 public class AssetsPanel {
@@ -26,7 +28,8 @@ public class AssetsPanel {
 
     /** Builds the panel with its parts, which are all internal to this package. */
     public static AssetsPanel create(Project project, AssetLibrary assetLibrary, CommandStack commandStack,
-                                     ToolState toolState) {
+                                     ToolState toolState, Consumer<String> errorSink,
+                                     BiConsumer<String, String> onAssetRenamed) {
         AssetFolders folders = new AssetFolders(project);
         AssetSearch search = new AssetSearch(project);
         AssetSelection selection = new AssetSelection();
@@ -35,11 +38,12 @@ public class AssetsPanel {
         AssetImporter importer = new AssetImporter(project, assetLibrary);
         AssetImportControls imports = new AssetImportControls(importer, new NativeFileDialog(), browser);
         FolderDropTarget folderDrops = new FolderDropTarget(new AssetMover(folders, commandStack), imports, selection);
+        AssetRenamer renamer = new AssetRenamer(folders, errorSink, onAssetRenamed);
 
         return new AssetsPanel(
             new AssetToolbar(imports, search),
             new AssetPathBar(browser, search, folderDrops),
-            new AssetGrid(browser, assetLibrary, new TileInteraction(selection, toolState), folderDrops),
+            new AssetGrid(browser, assetLibrary, new TileInteraction(selection, toolState), folderDrops, renamer),
             imports, selection);
     }
 

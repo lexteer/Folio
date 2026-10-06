@@ -66,6 +66,20 @@ public class Room {
         return result;
     }
 
+    /** Points the sprites that use the asset id at the new id. Returns whether there were any. */
+    public boolean replaceAssetId(String oldId, String newId) {
+        boolean replaced = false;
+        for (SpriteLayer layer : getSpriteLayers()) {
+            for (Sprite sprite : layer.getItems()) {
+                if (sprite.getAssetId().equalsIgnoreCase(oldId)) {
+                    sprite.setAssetId(newId);
+                    replaced = true;
+                }
+            }
+        }
+        return replaced;
+    }
+
     public void addLayer(Layer<?> layer) {
         layers.add(Objects.requireNonNull(layer, "layer"));
     }

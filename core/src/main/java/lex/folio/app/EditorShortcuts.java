@@ -14,8 +14,11 @@ final class EditorShortcuts {
     private final ToolController tools;
     private final ToolState toolState;
     private final Runnable save;
+    private final Runnable deleteSelection;
 
-    EditorShortcuts(CommandStack commandStack, ToolController tools, ToolState toolState, Runnable save) {
+    EditorShortcuts(CommandStack commandStack, ToolController tools, ToolState toolState, Runnable save,
+                    Runnable deleteSelection) {
+        this.deleteSelection = deleteSelection;
         this.commandStack = commandStack;
         this.tools = tools;
         this.toolState = toolState;
@@ -31,6 +34,9 @@ final class EditorShortcuts {
 
         handleUndoRedo(io);
         handleEscape();
+        if (ImGui.isKeyPressed(ImGuiKey.Delete)) {
+            deleteSelection.run();
+        }
     }
 
     private void handleUndoRedo(ImGuiIO io) {

@@ -22,6 +22,7 @@ import lex.folio.scene.render.SceneRenderer;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -94,6 +95,11 @@ public class ScenePanel {
         return tab;
     }
 
+    /** The names the open rooms were last saved under, in tab order. Rooms that were never saved are left out. */
+    public List<String> getOpenSavedRoomNames() {
+        return tabs.stream().map(RoomTab::getSavedName).filter(Objects::nonNull).toList();
+    }
+
     /** Adds a room that exists only in memory until it is saved, and shows it. */
     public void openNewRoom(Room room) {
         tabToSelect = addTab(room);
@@ -102,6 +108,19 @@ public class ScenePanel {
     /** Call after anything may have changed a room, so the unsaved marks are worked out again. */
     public void roomsChanged() {
         recheckUnsaved = true;
+    }
+
+    /** Points the sprites of the open rooms that use the asset id at the new id. */
+    public void assetRenamed(String oldId, String newId) {
+        for (RoomTab tab : tabs) {
+            tab.getRoom().replaceAssetId(oldId, newId);
+        }
+        roomsChanged();
+    }
+
+    /** The room whose tab is shown, or null if no tab is open. */
+    public Room getActiveRoom() {
+        return activeTab == null ? null : activeTab.getRoom();
     }
 
     public boolean canSaveActiveRoom() {

@@ -39,6 +39,11 @@ final class AssetTile {
         return clicked;
     }
 
+    /** The screen Y of the name of the tile drawn last. */
+    float getLastNameY() {
+        return canvas.getMinY() + canvas.getSize() + getNameGap();
+    }
+
     /** Draws what follows the mouse while dragging an asset; itemCount is how many items are being dragged. */
     void drawPreview(TextureRegion region, float size, int itemCount) {
         canvas.place(ImGui.getCursorScreenPosX() + SHADOW_SIZE, ImGui.getCursorScreenPosY() + SHADOW_SIZE, size);

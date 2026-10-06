@@ -3,7 +3,7 @@ package lex.folio.model;
 import java.util.Objects;
 
 public final class ImageAsset {
-    private final String id;
+    private String id;
     private String path;
 
     public ImageAsset(String id, String path) {
@@ -13,6 +13,11 @@ public final class ImageAsset {
 
     public String getId() {
         return id;
+    }
+
+    /** Only {@link Project#renameAsset} changes the id, because the project looks assets up by it. */
+    void setId(String id) {
+        this.id = requireValidId(id);
     }
 
     public String getPath() {
