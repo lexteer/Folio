@@ -46,6 +46,17 @@ public class Room {
         return readOnlyLayers;
     }
 
+    /** The sprite layers in draw order, bottom first. */
+    public List<SpriteLayer> getSpriteLayers() {
+        List<SpriteLayer> result = new ArrayList<>();
+        for (Layer<?> layer : layers) {
+            if (layer instanceof SpriteLayer spriteLayer) {
+                result.add(spriteLayer);
+            }
+        }
+        return result;
+    }
+
     public void addLayer(Layer<?> layer) {
         layers.add(Objects.requireNonNull(layer, "layer"));
     }

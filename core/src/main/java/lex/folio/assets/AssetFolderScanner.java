@@ -7,7 +7,6 @@ import lex.folio.model.Project;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Locale;
 import java.util.stream.Stream;
 
 /**
@@ -16,7 +15,6 @@ import java.util.stream.Stream;
  */
 public final class AssetFolderScanner {
     private static final String TAG = "AssetFolderScanner";
-    private static final String PNG_EXTENSION = ".png";
 
     private AssetFolderScanner() {
     }
@@ -29,7 +27,7 @@ public final class AssetFolderScanner {
         }
 
         try (Stream<Path> files = Files.walk(assetsFolder)) {
-            files.filter(AssetFolderScanner::isPng)
+            files.filter(ImageFiles::isPng)
                 .sorted()
                 .forEach(file -> addAsset(project, file));
         } catch (IOException e) {
@@ -38,7 +36,7 @@ public final class AssetFolderScanner {
     }
 
     private static void addAsset(Project project, Path file) {
-        String id = toAssetId(file);
+        String id = ImageFiles.toAssetId(file);
         if (project.findAsset(id) != null) {
             Gdx.app.error(TAG, "Skipping " + file + ": asset id '" + id + "' is already used");
             return;
@@ -46,15 +44,5 @@ public final class AssetFolderScanner {
 
         String path = project.getAssetsFolder().relativize(file).toString().replace('\\', '/');
         project.addAsset(new ImageAsset(id, path));
-    }
-
-    private static String toAssetId(Path file) {
-        String fileName = file.getFileName().toString();
-        return fileName.substring(0, fileName.length() - PNG_EXTENSION.length());
-    }
-
-    private static boolean isPng(Path file) {
-        String fileName = file.getFileName().toString().toLowerCase(Locale.ROOT);
-        return Files.isRegularFile(file) && fileName.endsWith(PNG_EXTENSION);
     }
 }

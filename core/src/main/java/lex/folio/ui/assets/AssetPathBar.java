@@ -3,43 +3,63 @@ package lex.folio.ui.assets;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
-import lex.folio.assets.AssetFolders;
-import java.util.function.Consumer;
+import lex.folio.assets.AssetFolderPath;
 
-final class AssetPathBar {
+/** Shows where in the folders the panel is, and lets the user click back to any folder on the way. */
+class AssetPathBar {
     private static final String ROOT_LABEL = "assets";
     private static final String SEARCH_LABEL = "Search results";
     private static final String SEPARATOR = "/";
     private static final float SEGMENT_GAP = 2f;
     private static final float SEGMENT_PADDING_X = 3f;
 
-    private final Consumer<String> acceptDropsOnSegment;
+    private final AssetBrowser browser;
+    private final AssetSearch search;
+    private final FolderDropTarget folderDrops;
 
-    AssetPathBar(Consumer<String> acceptDropsOnSegment) {
-        this.acceptDropsOnSegment = acceptDropsOnSegment;
+    AssetPathBar(AssetBrowser browser, AssetSearch search, FolderDropTarget folderDrops) {
+        this.browser = browser;
+        this.search = search;
+        this.folderDrops = folderDrops;
     }
 
-    String draw(String currentFolder) {
+    void draw() {
         pushSegmentStyle();
-        String clickedFolder = null;
+        String clickedFolder = search.isActive() ? drawSearchPath() : drawFolderPath();
+        popSegmentStyle();
 
-        if (drawSegment(ROOT_LABEL, AssetFolders.ROOT)) {
-            clickedFolder = AssetFolders.ROOT;
+        if (clickedFolder != null) {
+            search.clear();
+            browser.open(clickedFolder);
         }
-        for (String folder : AssetFolders.getPathFromRoot(currentFolder)) {
+    }
+
+    private String drawFolderPath() {
+        String clickedFolder = drawRoot();
+
+        for (String folder : AssetFolderPath.getPathFromRoot(browser.getCurrentFolder())) {
             drawSeparator();
-            if (drawSegment(AssetFolders.getName(folder), folder)) {
+            if (drawSegment(AssetFolderPath.getName(folder), folder)) {
                 clickedFolder = folder;
             }
         }
-
-        popSegmentStyle();
         return clickedFolder;
+    }
+
+    private String drawSearchPath() {
+        String clickedFolder = drawRoot();
+        drawSeparator();
+        ImGui.text(SEARCH_LABEL);
+        return clickedFolder;
+    }
+
+    private String drawRoot() {
+        return drawSegment(ROOT_LABEL, AssetFolderPath.ROOT) ? AssetFolderPath.ROOT : null;
     }
 
     private boolean drawSegment(String label, String folder) {
         boolean clicked = ImGui.smallButton(label + "##" + folder);
-        acceptDropsOnSegment.accept(folder);
+        folderDrops.acceptOnLastItem(folder);
         return clicked;
     }
 
@@ -59,14 +79,5 @@ final class AssetPathBar {
     private void popSegmentStyle() {
         ImGui.popStyleVar();
         ImGui.popStyleColor(3);
-    }
-
-    String drawForSearch() {
-        pushSegmentStyle();
-        String clickedFolder = drawSegment(ROOT_LABEL, AssetFolders.ROOT) ? AssetFolders.ROOT : null;
-        drawSeparator();
-        ImGui.text(SEARCH_LABEL);
-        popSegmentStyle();
-        return clickedFolder;
     }
 }

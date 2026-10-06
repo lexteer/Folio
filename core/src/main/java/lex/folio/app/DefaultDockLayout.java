@@ -5,8 +5,8 @@ import imgui.internal.ImGui;
 import imgui.internal.flag.ImGuiDockNodeFlags;
 import imgui.type.ImInt;
 import lex.folio.ui.assets.AssetsPanel;
-import lex.folio.ui.InspectorPanel;
-import lex.folio.ui.ScenePanel;
+import lex.folio.ui.inspector.InspectorPanel;
+import lex.folio.ui.scene.ScenePanel;
 
 final class DefaultDockLayout {
     private static final float INSPECTOR_WIDTH_RATIO = 0.20f;

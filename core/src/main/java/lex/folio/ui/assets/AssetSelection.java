@@ -2,33 +2,33 @@ package lex.folio.ui.assets;
 
 import java.util.*;
 
-public class AssetSelection {
+class AssetSelection {
     private final Set<BrowserItem> items = new LinkedHashSet<>();
     private final Set<BrowserItem> readOnlyItems = Collections.unmodifiableSet(items);
     private BrowserItem anchor;
 
-    public Set<BrowserItem> getItems() {
+    Set<BrowserItem> getItems() {
         return readOnlyItems;
     }
 
-    public boolean contains(BrowserItem item) {
+    boolean contains(BrowserItem item) {
         return items.contains(item);
     }
 
-    public void selectOnly(BrowserItem item) {
+    void selectOnly(BrowserItem item) {
         items.clear();
         items.add(Objects.requireNonNull(item, "item"));
         anchor = item;
     }
 
-    public void toggle(BrowserItem item) {
+    void toggle(BrowserItem item) {
         if (!items.remove(item)) {
             items.add(Objects.requireNonNull(item, "item"));
         }
         anchor = item;
     }
 
-    public void selectRange(List<BrowserItem> orderedItems, BrowserItem item) {
+    void selectRange(List<BrowserItem> orderedItems, BrowserItem item) {
         int anchorIndex = anchor == null ? -1 : orderedItems.indexOf(anchor);
         int itemIndex = orderedItems.indexOf(item);
         if (anchorIndex < 0 || itemIndex < 0) {
@@ -39,12 +39,17 @@ public class AssetSelection {
         items.addAll(orderedItems.subList(Math.min(anchorIndex, itemIndex), Math.max(anchorIndex, itemIndex) + 1));
     }
 
-    public void clear() {
+    /** The items that move together when the grabbed item is dragged: the whole selection if it is part of it. */
+    List<BrowserItem> getDragItems(BrowserItem grabbed) {
+        return items.contains(grabbed) ? List.copyOf(items) : List.of(grabbed);
+    }
+
+    void clear() {
         items.clear();
         anchor = null;
     }
 
-    public void replaceWith(Collection<BrowserItem> newItems) {
+    void replaceWith(Collection<BrowserItem> newItems) {
         items.clear();
         items.addAll(newItems);
     }

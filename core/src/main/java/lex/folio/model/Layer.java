@@ -46,6 +46,11 @@ public abstract sealed class Layer<T extends RoomObject> permits SpriteLayer {
         this.locked = locked;
     }
 
+    /** Whether tools may pick or place objects on this layer. */
+    public boolean isEditable() {
+        return visible && !locked;
+    }
+
     public List<T> getItems() {
         return readOnlyItems;
     }

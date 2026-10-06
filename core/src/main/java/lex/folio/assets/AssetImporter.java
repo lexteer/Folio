@@ -8,12 +8,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Locale;
 import java.util.stream.Stream;
 
 public class AssetImporter {
     private static final String TAG = "AssetImporter";
-    private static final String PNG_EXTENSION = ".png";
 
     private final Project project;
     private final AssetLibrary assetLibrary;
@@ -32,7 +30,7 @@ public class AssetImporter {
     private void importPath(Path path, String folder) {
         if (Files.isDirectory(path)) {
             importFolder(path, folder);
-        } else if (isPng(path)) {
+        } else if (ImageFiles.isPng(path)) {
             importPngFile(path, folder);
         } else {
             Gdx.app.log(TAG, "Skipping " + path + ": not a PNG file");
@@ -40,7 +38,7 @@ public class AssetImporter {
     }
 
     private void importFolder(Path sourceFolder, String parentFolder) {
-        String targetFolder = AssetFolders.join(parentFolder, sourceFolder.getFileName().toString());
+        String targetFolder = AssetFolderPath.join(parentFolder, sourceFolder.getFileName().toString());
         importFiles(listFolder(sourceFolder), targetFolder);
     }
 
@@ -54,13 +52,13 @@ public class AssetImporter {
     }
 
     private void importPngFile(Path file, String folder) {
-        String id = toAssetId(file);
+        String id = ImageFiles.toAssetId(file);
         if (project.findAsset(id) != null) {
             Gdx.app.error(TAG, "Skipping " + file + ": asset id '" + id + "' is already used");
             return;
         }
 
-        String assetPath = AssetFolders.join(folder, file.getFileName().toString());
+        String assetPath = AssetFolderPath.join(folder, file.getFileName().toString());
         Path target = project.getAssetsFolder().resolve(assetPath);
         if (!copyFile(file, target)) return;
 
@@ -78,15 +76,5 @@ public class AssetImporter {
             Gdx.app.error(TAG, "Could not copy " + source + " to " + target, e);
             return false;
         }
-    }
-
-    private static String toAssetId(Path file) {
-        String fileName = file.getFileName().toString();
-        return fileName.substring(0, fileName.length() - PNG_EXTENSION.length());
-    }
-
-    private static boolean isPng(Path file) {
-        String fileName = file.getFileName().toString().toLowerCase(Locale.ROOT);
-        return Files.isRegularFile(file) && fileName.endsWith(PNG_EXTENSION);
     }
 }

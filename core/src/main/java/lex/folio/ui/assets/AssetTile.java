@@ -5,7 +5,7 @@ import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec4;
 import imgui.flag.ImGuiCol;
-import imgui.flag.ImGuiMouseButton;
+import lex.folio.ui.common.UiColors;
 
 final class AssetTile {
     private static final String ELLIPSIS = "...";
@@ -27,13 +27,13 @@ final class AssetTile {
     private static final float HIGHLIGHT_GROW = 1.5f;
     private static final float HIGHLIGHT_THICKNESS = 2f;
 
-    private final int highlightColor = ImGui.colorConvertFloat4ToU32(0.35f, 0.65f, 1f, 1f);
-
-    private final int folderColor = ImGui.colorConvertFloat4ToU32(0.85f, 0.70f, 0.35f, 1f);
-    private final int shadowColor = ImGui.colorConvertFloat4ToU32(0f, 0f, 0f, 0.08f);
-    private final int selectedColor = ImGui.colorConvertFloat4ToU32(0.35f, 0.65f, 1f, 0.25f);
     private static final float BADGE_PADDING = 2f;
-    private final int badgeColor = ImGui.colorConvertFloat4ToU32(0f, 0f, 0f, 0.6f);
+
+    private static final int HIGHLIGHT_COLOR = UiColors.ACCENT;
+    private static final int SELECTED_COLOR = UiColors.withAlpha(UiColors.ACCENT, 0.25f);
+    private static final int FOLDER_COLOR = UiColors.pack(0.85f, 0.70f, 0.35f, 1f);
+    private static final int SHADOW_COLOR = UiColors.pack(0f, 0f, 0f, 0.08f);
+    private static final int BADGE_COLOR = UiColors.pack(0f, 0f, 0f, 0.6f);
 
     private ImDrawList drawList;
     private float minX;
@@ -60,7 +60,7 @@ final class AssetTile {
     private void drawHighlight() {
         drawList.addRect(minX - HIGHLIGHT_GROW, minY - HIGHLIGHT_GROW,
             minX + size + HIGHLIGHT_GROW, minY + size + HIGHLIGHT_GROW,
-            highlightColor, CARD_ROUNDING + HIGHLIGHT_GROW, HIGHLIGHT_THICKNESS);
+            HIGHLIGHT_COLOR, CARD_ROUNDING + HIGHLIGHT_GROW, HIGHLIGHT_THICKNESS);
     }
 
     private void drawCard() {
@@ -78,7 +78,7 @@ final class AssetTile {
     private void drawCardShadow(float maxX, float maxY) {
         for (int layer = 1; layer <= SHADOW_LAYERS; layer++) {
             drawList.addRectFilled(minX - layer, minY - layer, maxX + layer, maxY + layer,
-                shadowColor, CARD_ROUNDING + layer);
+                SHADOW_COLOR, CARD_ROUNDING + layer);
         }
     }
 
@@ -124,8 +124,8 @@ final class AssetTile {
         float bodyTop = minY + size * FOLDER_BODY_TOP;
         float bottom = minY + size * FOLDER_BOTTOM;
 
-        drawList.addRectFilled(left, tabTop, tabRight, bodyTop + ROUNDING, folderColor, ROUNDING);
-        drawList.addRectFilled(left, bodyTop, right, bottom, folderColor, ROUNDING);
+        drawList.addRectFilled(left, tabTop, tabRight, bodyTop + ROUNDING, FOLDER_COLOR, ROUNDING);
+        drawList.addRectFilled(left, bodyTop, right, bottom, FOLDER_COLOR, ROUNDING);
     }
 
     private void drawName(String name) {
@@ -172,11 +172,11 @@ final class AssetTile {
         float y = minY + padding;
         drawList.addRectFilled(x - BADGE_PADDING, y - BADGE_PADDING,
             x + textWidth + BADGE_PADDING, y + ImGui.getTextLineHeight() + BADGE_PADDING,
-            badgeColor, CARD_ROUNDING);
+            BADGE_COLOR, CARD_ROUNDING);
         drawList.addText(x, y, ImGui.getColorU32(ImGuiCol.Text), text);
     }
 
     private void drawSelectedBackground() {
-        drawList.addRectFilled(minX, minY, minX + size, minY + size, selectedColor, CARD_ROUNDING);
+        drawList.addRectFilled(minX, minY, minX + size, minY + size, SELECTED_COLOR, CARD_ROUNDING);
     }
 }
