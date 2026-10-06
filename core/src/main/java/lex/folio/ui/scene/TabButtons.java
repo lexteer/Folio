@@ -13,6 +13,8 @@ final class TabButtons {
     private static final float CLOSE_SIZE_PER_FONT_SIZE = 1f;
     private static final String ADD_LABEL = "   ";
     private static final float HOVER_ALPHA = 0.2f;
+    /** The icons are drawn smaller than the circles around them. */
+    private static final float ICON_SIZE_PER_FONT_SIZE = 0.8f;
 
     private TabButtons() {
     }
@@ -76,8 +78,11 @@ final class TabButtons {
     }
 
     private static void drawIconCentered(ImDrawList draw, String icon, float x, float y) {
-        ImVec2 size = ImGui.calcTextSize(icon);
-        draw.addText(Math.round(x - size.x / 2f), Math.round(y - size.y / 2f), ImGui.getColorU32(ImGuiCol.Text), icon);
+        int size = Math.round(ImGui.getFontSize() * ICON_SIZE_PER_FONT_SIZE);
+        float scale = size / Icons.FONT_SIZE;
+        ImVec2 box = ImGui.calcTextSize(icon);
+        draw.addText(ImGui.getFont(), size, Math.round(x - box.x * scale / 2f), Math.round(y - box.y * scale / 2f),
+            ImGui.getColorU32(ImGuiCol.Text), icon);
     }
 
     /** The vertical middle of the text of the item just submitted, which is not the middle of its whole rectangle. */
