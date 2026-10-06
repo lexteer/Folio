@@ -1,8 +1,11 @@
 package lex.folio.ui.inspector;
 
 import imgui.ImGui;
-import imgui.type.ImFloat;
+import imgui.flag.ImGuiInputTextFlags;
+import imgui.type.ImString;
 
+import java.util.Locale;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 /** Lays out one labelled row of inspector fields, and reports a field's value once its edit is finished. */
@@ -10,11 +13,13 @@ final class PropertyRow {
     private static final String DECIMAL_FORMAT = "%.3f";
     private static final float LABEL_WIDTH_IN_FONT_SIZES = 6f;
 
-    private final ImFloat fieldValue = new ImFloat();
-    private float pendingValue;
+    private final ImString fieldText = new ImString(32);
+    private String label = "";
+    private String editedField;
     private float fieldsWidth;
 
     void begin(String label) {
+        this.label = label;
         ImGui.pushID(label);
         ImGui.alignTextToFramePadding();
         ImGui.text(label);
@@ -64,14 +69,39 @@ final class PropertyRow {
         return ImGui.getStyle().getItemSpacingX();
     }
 
+    /**
+     * A text field that is parsed here instead of by ImGui's number input, so a decimal point or comma always
+     * works. The text is only replaced by the value while the field is not being edited.
+     */
     private void drawFloatInput(String id, float value, Consumer<Float> onCommit) {
-        fieldValue.set(value);
-        if (ImGui.inputFloat(id, fieldValue, 0, 0, DECIMAL_FORMAT)) {
-            pendingValue = fieldValue.get();
+        String key = label + id;
+        if (!key.equals(editedField)) {
+            fieldText.set(format(value));
         }
 
-        if (ImGui.isItemDeactivatedAfterEdit()) {
-            onCommit.accept(pendingValue);
+        ImGui.inputText(id, fieldText, ImGuiInputTextFlags.AutoSelectAll);
+        if (ImGui.isItemActivated()) {
+            editedField = key;
+        }
+        if (ImGui.isItemDeactivated()) {
+            editedField = null;
+            if (ImGui.isItemDeactivatedAfterEdit()) {
+                parse(fieldText.get()).ifPresent(onCommit);
+            }
+        }
+    }
+
+    private static String format(float value) {
+        String text = String.format(Locale.ROOT, DECIMAL_FORMAT, value);
+        return text.contains(".") ? text.replaceAll("\\.?0+$", "") : text;
+    }
+
+    private static Optional<Float> parse(String text) {
+        try {
+            float value = Float.parseFloat(text.trim().replace(',', '.'));
+            return Float.isFinite(value) ? Optional.of(value) : Optional.empty();
+        } catch (NumberFormatException e) {
+            return Optional.empty();
         }
     }
 }
