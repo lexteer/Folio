@@ -2,6 +2,7 @@ package lex.folio.ui.scene;
 
 import imgui.ImGui;
 import imgui.ImGuiWindowClass;
+import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiHoveredFlags;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiTabBarFlags;
@@ -25,10 +26,11 @@ public class ScenePanel {
     public static final String TITLE = "Scene";
     private static final String NEW_ROOM_BUTTON = "+";
     private static final String ROOM_NAME_PREFIX = "Room ";
-    private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
+    private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse
+        | ImGuiWindowFlags.NoCollapse;
     private static final int TAB_BAR_FLAGS = ImGuiTabBarFlags.Reorderable | ImGuiTabBarFlags.FittingPolicyScroll;
-    /** Keeps the dock node from becoming a tab group: its title bar stays, and acts as the handle for moving it. */
-    private static final int DOCK_NODE_FLAGS = ImGuiDockNodeFlags.AutoHideTabBar
+    /** Keeps the dock node from becoming a tab group: the plain title bar stays, and is the handle for moving it. */
+    private static final int DOCK_NODE_FLAGS = ImGuiDockNodeFlags.NoTabBar
         | ImGuiDockNodeFlags.NoDockingOverMe | ImGuiDockNodeFlags.NoDockingOverOther;
 
     private final List<RoomTab> tabs = new ArrayList<>();
@@ -70,7 +72,9 @@ public class ScenePanel {
     public void draw() {
         ImGui.setNextWindowClass(windowClass);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0, 0);
+        int titleColors = pushFlatTitleBarColors();
         boolean visible = ImGui.begin(TITLE, WINDOW_FLAGS);
+        ImGui.popStyleColor(titleColors);
         ImGui.popStyleVar();
         hovered = ImGui.isWindowHovered(ImGuiHoveredFlags.RootAndChildWindows);
 
@@ -78,6 +82,14 @@ public class ScenePanel {
             drawTabs();
         }
         ImGui.end();
+    }
+
+    /** Makes the title bar one plain colour, whether or not the panel is focused. Returns how many were pushed. */
+    private static int pushFlatTitleBarColors() {
+        int color = ImGui.getColorU32(ImGuiCol.TitleBg);
+        ImGui.pushStyleColor(ImGuiCol.TitleBgActive, color);
+        ImGui.pushStyleColor(ImGuiCol.TitleBgCollapsed, color);
+        return 2;
     }
 
     public void dispose() {
