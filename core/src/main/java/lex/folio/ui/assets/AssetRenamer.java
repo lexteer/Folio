@@ -51,10 +51,13 @@ class AssetRenamer {
         if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left)) {
             start(asset);
         }
+        // Every tile has its own menu, so its popup needs an id of its own.
+        ImGui.pushID(asset.getId());
         if (ImGui.beginPopupContextItem("##AssetTileMenu")) {
             if (ImGui.menuItem("Rename")) start(asset);
             ImGui.endPopup();
         }
+        ImGui.popID();
         if (isRenaming(asset)) {
             x = ImGui.getItemRectMinX();
             y = nameY;
