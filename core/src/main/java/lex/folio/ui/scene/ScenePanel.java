@@ -308,7 +308,10 @@ public class ScenePanel {
     /** Returns false when the user asked to close the tab. */
     private boolean drawTab(RoomTab tab) {
         int flags = tab == tabToSelect ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None;
+        // The rename field is drawn over the tab, so the old name must not show through.
+        if (tab == renamingTab) ImGui.pushStyleColor(ImGuiCol.Text, 0);
         boolean selected = ImGui.beginTabItem(tab.getLabel(TabButtons.closeButtonPadding()), flags);
+        if (tab == renamingTab) ImGui.popStyleColor();
         trackRename(tab);
         boolean close = TabButtons.drawClose(tab.isUnsaved());
         close |= drawTabMenu(tab);
@@ -366,8 +369,9 @@ public class ScenePanel {
         ImGui.pushStyleColor(ImGuiCol.FrameBg, 0);
         ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, 0);
         ImGui.pushStyleColor(ImGuiCol.FrameBgActive, 0);
+        ImGui.pushStyleColor(ImGuiCol.TextSelectedBg, 1f, 1f, 1f, 0.35f);
         ImGui.inputText("##RenameRoom", renameText, ImGuiInputTextFlags.AutoSelectAll | ImGuiInputTextFlags.EnterReturnsTrue);
-        ImGui.popStyleColor(3);
+        ImGui.popStyleColor(4);
         if (ImGui.isItemActive()) {
             renameActive = true;
         } else if (renameActive) {
