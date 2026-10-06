@@ -49,7 +49,6 @@ public class ImGuiBackend implements Disposable {
         ImGuiIO io = ImGui.getIO();
         io.addConfigFlags(ImGuiConfigFlags.DockingEnable);
 
-        FileHandle layoutFile = Gdx.files.external(".folio/layout.ini");
         layoutFile.parent().mkdirs();
         io.setIniFilename(layoutFile.file().getAbsolutePath());
         io.setConfigWindowsMoveFromTitleBarOnly(true);
