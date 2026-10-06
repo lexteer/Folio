@@ -5,8 +5,11 @@ import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.utils.Disposable;
 import imgui.ImGui;
 import imgui.ImGuiIO;
+import imgui.ImGuiStyle;
+import imgui.ImVec4;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiConfigFlags;
+import imgui.flag.ImGuiDir;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
 import org.lwjgl.glfw.GLFW;
@@ -55,7 +58,16 @@ public class ImGuiBackend implements Disposable {
         io.setConfigWindowsMoveFromTitleBarOnly(true);
 
         // No dimming behind modal popups.
-        ImGui.getStyle().setColor(ImGuiCol.ModalWindowDimBg, 0f, 0f, 0f, 0f);
+        ImGuiStyle style = ImGui.getStyle();
+        style.setColor(ImGuiCol.ModalWindowDimBg, 0f, 0f, 0f, 0f);
+
+        // No collapse arrow on the tab bar row.
+        style.setWindowMenuButtonPosition(ImGuiDir.None);
+
+        // Tab bar row keeps the same background whether or not the panel is focused.
+        ImVec4 titleBg = new ImVec4();
+        style.getColor(ImGuiCol.TitleBg, titleBg);
+        style.setColor(ImGuiCol.TitleBgActive, titleBg.x, titleBg.y, titleBg.z, titleBg.w);
     }
 
     public boolean hadSavedLayout() {
