@@ -1,7 +1,6 @@
 package lex.folio.assets;
 
 import com.badlogic.gdx.Gdx;
-import lex.folio.model.ImageAsset;
 import lex.folio.model.Project;
 
 import java.io.IOException;
@@ -26,23 +25,21 @@ public final class AssetFolderScanner {
             return;
         }
 
+        AssetRegistrar registrar = new AssetRegistrar(project);
         try (Stream<Path> files = Files.walk(assetsFolder)) {
             files.filter(ImageFiles::isPng)
                 .sorted()
-                .forEach(file -> addAsset(project, file));
+                .forEach(file -> addAsset(project, registrar, file));
         } catch (IOException e) {
             Gdx.app.error(TAG, "Could not scan " + assetsFolder, e);
         }
     }
 
-    private static void addAsset(Project project, Path file) {
-        String id = ImageFiles.toAssetId(file);
-        if (project.findAsset(id) != null) {
-            Gdx.app.error(TAG, "Skipping " + file + ": asset id '" + id + "' is already used");
-            return;
-        }
+    private static void addAsset(Project project, AssetRegistrar registrar, Path file) {
+        String id = registrar.findFreeId(file);
+        if (id == null) return;
 
         String path = project.getAssetsFolder().relativize(file).toString().replace('\\', '/');
-        project.addAsset(new ImageAsset(id, path));
+        registrar.add(id, path);
     }
 }

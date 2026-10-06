@@ -1,6 +1,6 @@
 package lex.folio.ui.assets;
 
-import lex.folio.assets.AssetFolderPath;
+import lex.folio.model.AssetFolderPath;
 import lex.folio.assets.AssetFolders;
 import lex.folio.model.ImageAsset;
 import lex.folio.model.Project;

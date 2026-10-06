@@ -1,6 +1,7 @@
 package lex.folio.assets;
 
 import com.badlogic.gdx.Gdx;
+import lex.folio.model.AssetFolderPath;
 import lex.folio.model.ImageAsset;
 import lex.folio.model.Project;
 

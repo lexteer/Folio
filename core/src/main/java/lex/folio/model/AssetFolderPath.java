@@ -1,4 +1,4 @@
-package lex.folio.assets;
+package lex.folio.model;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +15,13 @@ public final class AssetFolderPath {
         return folder.equals(ROOT) ? name : folder + SEPARATOR + name;
     }
 
+    /** The folder that contains the given folder or file path. The root contains itself. */
+    public static String getParent(String path) {
+        int lastSeparator = path.lastIndexOf(SEPARATOR);
+        return lastSeparator < 0 ? ROOT : path.substring(0, lastSeparator);
+    }
+
+    /** The last segment of a folder or file path. */
     public static String getName(String folder) {
         return folder.substring(folder.lastIndexOf(SEPARATOR) + 1);
     }

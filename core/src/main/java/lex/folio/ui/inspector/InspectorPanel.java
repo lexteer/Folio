@@ -30,9 +30,9 @@ public class InspectorPanel {
         Set<RoomObject> objects = selection.getObjects();
         if (objects.size() != 1) return;
 
-        RoomObject object = objects.iterator().next();
-        if (object instanceof Sprite sprite) {
-            spriteInspector.draw(sprite);
+        // Exhaustive over RoomObject: a new kind of object won't compile until it has an inspector.
+        switch (objects.iterator().next()) {
+            case Sprite sprite -> spriteInspector.draw(sprite);
         }
     }
 }

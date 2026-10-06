@@ -3,7 +3,7 @@ package lex.folio.ui.assets;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import imgui.ImGui;
 import imgui.flag.ImGuiMouseButton;
-import lex.folio.assets.AssetFolderPath;
+import lex.folio.model.AssetFolderPath;
 import lex.folio.assets.AssetLibrary;
 import lex.folio.model.ImageAsset;
 
