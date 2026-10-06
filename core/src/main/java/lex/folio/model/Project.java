@@ -39,6 +39,21 @@ public class Project {
         assetsByKey.put(key, asset);
     }
 
+    /** Gives the asset a new id, keeping its place in the order of assets. The new id must not be used by another asset. */
+    public void renameAsset(ImageAsset asset, String newId) {
+        ImageAsset owner = findAsset(newId);
+        if (owner != null && owner != asset) {
+            throw new IllegalArgumentException("Asset id already exists: " + newId);
+        }
+
+        asset.setId(newId);
+        List<ImageAsset> assets = new ArrayList<>(assetsByKey.values());
+        assetsByKey.clear();
+        for (ImageAsset each : assets) {
+            assetsByKey.put(toLookupKey(each.getId()), each);
+        }
+    }
+
     private static String toLookupKey(String id) {
         return id.toLowerCase(Locale.ROOT);
     }

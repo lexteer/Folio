@@ -104,6 +104,14 @@ public class ScenePanel {
         recheckUnsaved = true;
     }
 
+    /** Points the sprites of the open rooms that use the asset id at the new id. */
+    public void assetRenamed(String oldId, String newId) {
+        for (RoomTab tab : tabs) {
+            tab.getRoom().replaceAssetId(oldId, newId);
+        }
+        roomsChanged();
+    }
+
     public boolean canSaveActiveRoom() {
         return activeTab != null && activeTab.isUnsaved();
     }

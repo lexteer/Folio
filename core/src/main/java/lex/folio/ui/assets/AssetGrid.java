@@ -17,9 +17,11 @@ class AssetGrid {
     private final FolderDropTarget folderDrops;
     private final TileLayout layout = new TileLayout();
     private final AssetTile tile = new AssetTile();
+    private final AssetRenamer renamer;
 
     AssetGrid(AssetBrowser browser, AssetLibrary assetLibrary, TileInteraction interaction,
-              FolderDropTarget folderDrops) {
+              FolderDropTarget folderDrops, AssetRenamer renamer) {
+        this.renamer = renamer;
         this.browser = browser;
         this.assetLibrary = assetLibrary;
         this.interaction = interaction;
@@ -44,6 +46,7 @@ class AssetGrid {
             drawTile(item);
         }
         interaction.endFrame();
+        renamer.draw();
 
         ImGui.unindent(AssetTile.SHADOW_SIZE);
         ImGui.dummy(0, 0);
@@ -75,9 +78,12 @@ class AssetGrid {
     private void drawAssetTile(BrowserItem.Asset item) {
         ImageAsset asset = item.asset();
         TextureRegion region = assetLibrary.findRegion(asset.getId());
-        boolean clicked = tile.drawImage("asset:" + asset.getId(), asset.getId(), region, layout.getTileSize(),
+        // The rename field is drawn over the name, so the old name must not show through.
+        String name = renamer.isRenaming(asset) ? "" : asset.getId();
+        boolean clicked = tile.drawImage("asset:" + asset.getId(), name, region, layout.getTileSize(),
             interaction.isSelected(item), interaction.isArmed(asset));
         interaction.trackLastItemAsTile(item);
+        renamer.trackTile(asset, tile.getLastNameY());
 
         if (clicked) {
             interaction.onAssetClicked(item);

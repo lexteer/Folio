@@ -6,7 +6,7 @@ import java.util.Locale;
 
 /** Knows which files count as image assets and what id they get. */
 final class ImageFiles {
-    private static final String PNG_EXTENSION = ".png";
+    static final String PNG_EXTENSION = ".png";
 
     private ImageFiles() {
     }

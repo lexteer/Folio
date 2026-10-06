@@ -77,8 +77,19 @@ final class ProjectSession implements Disposable {
         this.selection = selection;
         this.errorSink = errorSink;
         inspectorPanel = new InspectorPanel(selection, new SpriteInspector(commandStack));
-        assetsPanel = AssetsPanel.create(project, assetLibrary, commandStack, toolState);
+        assetsPanel = AssetsPanel.create(project, assetLibrary, commandStack, toolState, errorSink,
+            this::assetRenamed);
         shortcuts = new EditorShortcuts(commandStack, tools, toolState, scenePanel::saveActiveRoom);
+    }
+
+    /** Rooms refer to assets by id, so renaming an asset updates the open rooms and the saved ones. */
+    private void assetRenamed(String oldId, String newId) {
+        scenePanel.assetRenamed(oldId, newId);
+        try {
+            roomStorage.replaceAssetId(oldId, newId);
+        } catch (IOException e) {
+            errorSink.accept("Could not update the saved rooms to the new asset name: " + e.getMessage());
+        }
     }
 
     /** A new room starts with one sprite layer. */

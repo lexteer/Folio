@@ -38,6 +38,20 @@ public final class RoomStorage {
         return rooms;
     }
 
+    /** Points the sprites of every saved room that use the asset id at the new id, and saves those rooms again. */
+    public void replaceAssetId(String oldId, String newId) throws IOException {
+        if (!Files.isDirectory(folder)) return;
+
+        List<Path> files;
+        try (Stream<Path> children = Files.list(folder)) {
+            files = children.filter(file -> file.getFileName().toString().endsWith(EXTENSION)).sorted().toList();
+        }
+        for (Path file : files) {
+            Room room = load(file);
+            if (room.replaceAssetId(oldId, newId)) save(room, null);
+        }
+    }
+
     public Path getFolder() {
         return folder;
     }
