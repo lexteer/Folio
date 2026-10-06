@@ -9,6 +9,7 @@ import imgui.flag.ImGuiTabBarFlags;
 import imgui.flag.ImGuiTabItemFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.internal.ImGui;
+import imgui.internal.ImGuiDockNode;
 import imgui.internal.flag.ImGuiDockNodeFlags;
 import lex.folio.model.Room;
 import lex.folio.scene.Selection;
@@ -79,15 +80,24 @@ public class ScenePanel {
         hovered = ImGui.isWindowHovered(ImGuiHoveredFlags.RootAndChildWindows);
 
         if (visible) {
-            drawHeader();
+            if (isDocked()) drawHeader();
             drawTabs();
         }
         ImGui.end();
     }
 
+    /** A floating panel has a title bar of its own, which already moves it. */
+    private static boolean isDocked() {
+        int dockId = ImGui.getWindowDockID();
+        if (dockId == 0) return false;
+
+        ImGuiDockNode node = ImGui.dockBuilderGetNode(dockId);
+        return node != null && !node.isFloatingNode();
+    }
+
     /**
-     * The plain bar at the top, standing in for the title bar that a docked window without a tab bar doesn't get.
-     * Dragging anywhere on it moves the whole panel, undocking it first if it is docked.
+     * The plain bar at the top, standing in for the title bar that a docked window without a tab bar doesn't get. Only shown while docked.
+     * Dragging anywhere on it undocks the whole panel and moves it.
      */
     private void drawHeader() {
         float width = ImGui.getContentRegionAvailX();
@@ -107,12 +117,8 @@ public class ScenePanel {
         if (movingWindow || !ImGui.isItemActive() || !ImGui.isMouseDragging(ImGuiMouseButton.Left)) return;
 
         movingWindow = true;
-        int dockId = ImGui.getWindowDockID();
-        if (dockId == 0) {
-            ImGui.startMouseMovingWindow(ImGui.getCurrentWindow());
-        } else {
-            ImGui.startMouseMovingWindowOrNode(ImGui.getCurrentWindow(), ImGui.dockBuilderGetNode(dockId), true);
-        }
+        ImGui.startMouseMovingWindowOrNode(ImGui.getCurrentWindow(),
+            ImGui.dockBuilderGetNode(ImGui.getWindowDockID()), true);
     }
 
     public void dispose() {
