@@ -8,6 +8,7 @@ import lex.folio.command.CommandStack;
 import lex.folio.model.Project;
 import lex.folio.model.Room;
 import lex.folio.model.SpriteLayer;
+import lex.folio.project.ProjectStorage;
 import lex.folio.project.RoomStorage;
 import lex.folio.scene.BoxSelect;
 import lex.folio.scene.Selection;
@@ -39,6 +40,7 @@ import java.util.function.Consumer;
 
 /** Everything that exists while one project is open: creates the parts, wires them together and draws them. */
 final class ProjectSession implements Disposable {
+    private final Project project;
     private final RoomStorage roomStorage;
     private final AssetLibrary assetLibrary;
     private final SceneRenderer sceneRenderer;
@@ -48,10 +50,16 @@ final class ProjectSession implements Disposable {
     private final EditorShortcuts shortcuts;
     private final Selection selection;
     private final Consumer<String> errorSink;
+    private List<String> lastRememberedRooms;
 
     ProjectSession(Project project, Consumer<String> errorSink) throws IOException {
         roomStorage = new RoomStorage(project);
-        List<Room> savedRooms = roomStorage.loadAll();
+        List<Room> allSavedRooms = roomStorage.loadAll();
+        List<String> rememberedRooms = ProjectStorage.readOpenRooms(project.getRootFolder());
+        List<Room> savedRooms = rememberedRooms == null ? allSavedRooms
+            : allSavedRooms.stream().filter(room -> isRemembered(rememberedRooms, room)).toList();
+        this.project = project;
+        this.lastRememberedRooms = savedRooms.stream().map(Room::getName).toList();
 
         assetLibrary = new AssetLibrary(project);
         assetLibrary.loadAll();
@@ -72,7 +80,7 @@ final class ProjectSession implements Disposable {
             roomStorage, errorSink, sceneRenderer, viewport,
             new SceneOverlay(viewport, spriteGeometry, selection, boxSelect, toolState),
             new SceneInput(viewport, tools, spritePlacer), selection);
-        if (savedRooms.isEmpty()) scenePanel.openNewRoom(createRoom("main"));
+        if (allSavedRooms.isEmpty()) scenePanel.openNewRoom(createRoom("main"));
         commandStack.setChangeListener(scenePanel::roomsChanged);
         this.selection = selection;
         this.errorSink = errorSink;
@@ -80,6 +88,23 @@ final class ProjectSession implements Disposable {
         assetsPanel = AssetsPanel.create(project, assetLibrary, commandStack, toolState, errorSink,
             this::assetRenamed);
         shortcuts = new EditorShortcuts(commandStack, tools, toolState, scenePanel::saveActiveRoom);
+    }
+
+    private static boolean isRemembered(List<String> names, Room room) {
+        return names.stream().anyMatch(name -> name.equalsIgnoreCase(room.getName()));
+    }
+
+    /** The next session opens the rooms that are open now, so this keeps the project file up to date. */
+    private void rememberOpenRooms() {
+        List<String> names = scenePanel.getOpenSavedRoomNames();
+        if (names.equals(lastRememberedRooms)) return;
+
+        lastRememberedRooms = names;
+        try {
+            ProjectStorage.writeOpenRooms(project.getRootFolder(), names);
+        } catch (IOException e) {
+            errorSink.accept("Could not remember which rooms are open: " + e.getMessage());
+        }
     }
 
     /** Rooms refer to assets by id, so renaming an asset updates the open rooms and the saved ones. */
@@ -116,6 +141,7 @@ final class ProjectSession implements Disposable {
         assetsPanel.draw();
         deselectWhenClickedOutsideSceneAndInspector();
         shortcuts.handle();
+        rememberOpenRooms();
     }
 
     /** The inspector edits the selection, so it has to keep it. The scene handles its own clicks. */

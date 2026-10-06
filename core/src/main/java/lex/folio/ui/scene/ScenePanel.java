@@ -22,6 +22,7 @@ import lex.folio.scene.render.SceneRenderer;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -92,6 +93,11 @@ public class ScenePanel {
         RoomTab tab = new RoomTab(room, new SceneCamera(pixelsPerMeter));
         tabs.add(tab);
         return tab;
+    }
+
+    /** The names the open rooms were last saved under, in tab order. Rooms that were never saved are left out. */
+    public List<String> getOpenSavedRoomNames() {
+        return tabs.stream().map(RoomTab::getSavedName).filter(Objects::nonNull).toList();
     }
 
     /** Adds a room that exists only in memory until it is saved, and shows it. */
