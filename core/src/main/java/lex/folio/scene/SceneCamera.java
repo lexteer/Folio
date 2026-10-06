@@ -8,6 +8,7 @@ import com.badlogic.gdx.math.Vector2;
 
 public class SceneCamera {
     private final float screenPixelsPerMeter;
+    private static final float START_ZOOM = 2f;
     private static final float MIN_ZOOM = 0.02f;
     private static final float MAX_ZOOM = 50f;
 
@@ -17,6 +18,7 @@ public class SceneCamera {
 
     public SceneCamera(float screenPixelsPerMeter) {
         this.screenPixelsPerMeter = screenPixelsPerMeter;
+        camera.zoom = START_ZOOM;
     }
 
     public void setScreenSize(int width, int height) {

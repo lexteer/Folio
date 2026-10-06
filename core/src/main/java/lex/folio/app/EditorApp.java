@@ -4,6 +4,7 @@ import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.utils.ScreenUtils;
 import imgui.ImGui;
 import lex.folio.assets.AssetFolderScanner;
+import lex.folio.assets.AssetImporter;
 import lex.folio.assets.AssetLibrary;
 import lex.folio.command.CommandStack;
 import lex.folio.model.Project;
@@ -11,35 +12,42 @@ import lex.folio.model.Room;
 import lex.folio.model.Sprite;
 import lex.folio.model.SpriteLayer;
 import lex.folio.scene.*;
-import lex.folio.ui.InspectorPanel;
-import lex.folio.ui.ScenePanel;
-import lex.folio.ui.SceneOverlay;
-import lex.folio.ui.SpriteInspector;
+import lex.folio.ui.*;
+import lex.folio.ui.assets.AssetsPanel;
 
 import java.nio.file.Path;
+import java.util.Arrays;
 
 public class EditorApp extends ApplicationAdapter {
     private ImGuiBackend imGui;
     private SceneCamera sceneCamera;
     private SceneRenderer sceneRenderer;
+    private AssetLibrary assetLibrary;
+    private AssetImporter assetImporter;
+
     private ScenePanel scenePanel;
     private InspectorPanel inspectorPanel;
-    private AssetLibrary assetLibrary;
+    private AssetsPanel assetsPanel;
 
     private static final Path TEST_PROJECT_FOLDER = Path.of(System.getProperty("user.home"), "FolioTestProject");
     private Project project;
     private CommandStack commandStack = new CommandStack();
+    SpriteDrag spriteDrag = new SpriteDrag(commandStack);
     private Selection selection = new Selection();
+    private final NativeFileDialog fileDialog = new NativeFileDialog();
 
     private static final String DOCKSPACE_NAME = "MainDockSpace";
     private boolean needsDefaultLayout;
+    private EditorShortcuts editorShortcuts;
+    private final ToolState toolState = new ToolState();
 
     @Override
     public void create() {
         imGui = new ImGuiBackend();
         needsDefaultLayout = !imGui.hadSavedLayout();
 
-        project = new Project(TEST_PROJECT_FOLDER, 128f);
+        editorShortcuts = new EditorShortcuts(commandStack, spriteDrag, toolState);
+        project = new Project(TEST_PROJECT_FOLDER, 100f);
         AssetFolderScanner.addAssetsTo(project);
         assetLibrary = new AssetLibrary(project);
         assetLibrary.loadAll();
@@ -47,11 +55,18 @@ public class EditorApp extends ApplicationAdapter {
         SpriteGeometry spriteGeometry = new SpriteGeometry(assetLibrary, project.getPixelsPerMeter());
         sceneCamera = new SceneCamera(project.getPixelsPerMeter());
         sceneRenderer = new SceneRenderer(sceneCamera, assetLibrary, spriteGeometry);
+        assetImporter = new AssetImporter(project, assetLibrary);
+
+        SpritePlacer spritePlacer = new SpritePlacer(commandStack);
+        SceneTools sceneTools = new SceneTools(toolState,
+            new SelectTool(new SpritePicker(spriteGeometry), selection, spriteDrag),
+            new PaintTool(toolState, spritePlacer),
+            spritePlacer);
         scenePanel = new ScenePanel(sceneRenderer, sceneCamera,
-            new SpritePicker(spriteGeometry),
-            new SceneOverlay(sceneCamera, spriteGeometry, assetLibrary),
-            selection, createTestRoom());
+            new SceneOverlay(sceneCamera, spriteGeometry, assetLibrary, selection),
+            createTestRoom(), sceneTools);
         inspectorPanel = new InspectorPanel(selection, new SpriteInspector(commandStack));
+        assetsPanel = new AssetsPanel(project, assetLibrary, assetImporter, commandStack, toolState);
     }
 
     @Override
@@ -68,6 +83,8 @@ public class EditorApp extends ApplicationAdapter {
 
         scenePanel.draw();
         inspectorPanel.draw();
+        assetsPanel.draw();
+        editorShortcuts.handle();
         imGui.endFrame();
     }
 
@@ -103,5 +120,9 @@ public class EditorApp extends ApplicationAdapter {
 
         room.addLayer(layer);
         return room;
+    }
+
+    public void filesDropped(String[] files) {
+        assetsPanel.filesDropped(Arrays.stream(files).map(Path::of).toList());
     }
 }

@@ -39,7 +39,7 @@ public class AssetLibrary implements Disposable {
         return regionsByAsset.get(asset);
     }
 
-    private void load(ImageAsset asset) {
+    public void load(ImageAsset asset) {
         Path file = project.getAssetsFolder().resolve(asset.getPath());
 
         try {

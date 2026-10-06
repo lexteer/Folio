@@ -20,25 +20,27 @@ public class SceneOverlay {
     private final SceneCamera camera;
     private final SpriteGeometry geometry;
     private final AssetLibrary assetLibrary;
+    private final Selection selection;
     private final int placeholderColor = ImGui.colorConvertFloat4ToU32(0.95f, 0.45f, 0.85f, 1f);
     private final int selectionColor = ImGui.colorConvertFloat4ToU32(0.35f, 0.65f, 1f, 1f);
 
     private float imageX;
     private float imageY;
 
-    public SceneOverlay(SceneCamera camera, SpriteGeometry geometry, AssetLibrary assetLibrary) {
+    public SceneOverlay(SceneCamera camera, SpriteGeometry geometry, AssetLibrary assetLibrary, Selection selection) {
         this.camera = camera;
         this.geometry = geometry;
         this.assetLibrary = assetLibrary;
+        this.selection = selection;
     }
 
-    public void draw(Room room, Selection selection, float imageX, float imageY) {
+    public void draw(Room room, float imageX, float imageY) {
         this.imageX = imageX;
         this.imageY = imageY;
 
         ImDrawList drawList = ImGui.getWindowDrawList();
         drawPlaceholders(drawList, room);
-        drawSelectionOutlines(drawList, selection);
+        drawSelectionOutlines(drawList);
     }
 
     private void drawPlaceholders(ImDrawList drawList, Room room) {
@@ -58,7 +60,7 @@ public class SceneOverlay {
         }
     }
 
-    private void drawSelectionOutlines(ImDrawList drawList, Selection selection) {
+    private void drawSelectionOutlines(ImDrawList drawList) {
         for (RoomObject object : selection.getObjects()) {
             if (object instanceof Sprite sprite) {
                 drawOutline(drawList, sprite, selectionColor);

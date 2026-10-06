@@ -2,6 +2,7 @@ package lex.folio.lwjgl3;
 
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
+import com.badlogic.gdx.backends.lwjgl3.Lwjgl3WindowAdapter;
 import lex.folio.app.EditorApp;
 
 /** Launches the desktop (LWJGL3) application. */
@@ -12,7 +13,15 @@ public class Lwjgl3Launcher {
     }
 
     private static Lwjgl3Application createApplication() {
-        return new Lwjgl3Application(new EditorApp(), getDefaultConfiguration());
+        EditorApp editorApp = new EditorApp();
+        Lwjgl3ApplicationConfiguration config = getDefaultConfiguration();
+        config.setWindowListener(new Lwjgl3WindowAdapter() {
+            @Override
+            public void filesDropped(String[] files) {
+                editorApp.filesDropped(files);
+            }
+        });
+        return new Lwjgl3Application(editorApp, config);
     }
 
     private static Lwjgl3ApplicationConfiguration getDefaultConfiguration() {

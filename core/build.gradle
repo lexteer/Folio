@@ -13,6 +13,11 @@ dependencies {
   if(enableGraalNative == 'true') {
     implementation "io.github.berstanio:gdx-svmhelper-annotations:$graalHelperVersion"
   }
+
+  implementation "org.lwjgl:lwjgl-tinyfd:$lwjgl3Version"
+  ['natives-windows', 'natives-linux', 'natives-macos', 'natives-macos-arm64'].each {
+    runtimeOnly "org.lwjgl:lwjgl-tinyfd:$lwjgl3Version:$it"
+  }
 }
 
 jar {

@@ -5,12 +5,10 @@ import imgui.ImGui;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
+import lex.folio.model.ImageAsset;
 import lex.folio.model.Room;
-import lex.folio.model.Sprite;
-import lex.folio.scene.SceneCamera;
-import lex.folio.scene.SceneRenderer;
-import lex.folio.scene.Selection;
-import lex.folio.scene.SpritePicker;
+import lex.folio.scene.*;
+import lex.folio.ui.assets.AssetDragDrop;
 
 public class ScenePanel {
     public static final String TITLE = "Scene";
@@ -19,21 +17,23 @@ public class ScenePanel {
 
     private final SceneRenderer sceneRenderer;
     private final SceneCamera camera;
-    private boolean panning;
-
-    private final Room room;
-    private final SpritePicker spritePicker;
-    private final Selection selection;
     private final SceneOverlay sceneOverlay;
+    private final Room room;
+    private final SceneToolbar toolbar;
+    private final SceneTools tools;
 
-    public ScenePanel(SceneRenderer sceneRenderer, SceneCamera camera, SpritePicker spritePicker,
-                      SceneOverlay sceneOverlay, Selection selection, Room room) {
+    private boolean panning;
+    private float imageX;
+    private float imageY;
+
+    public ScenePanel(SceneRenderer sceneRenderer, SceneCamera camera, SceneOverlay sceneOverlay,
+                      Room room, SceneTools tools) {
         this.sceneRenderer = sceneRenderer;
         this.camera = camera;
-        this.spritePicker = spritePicker;
-        this.selection = selection;
-        this.room = room;
         this.sceneOverlay = sceneOverlay;
+        this.room = room;
+        this.tools = tools;
+        this.toolbar = new SceneToolbar(tools.getToolState());
     }
 
     public void draw() {
@@ -54,28 +54,45 @@ public class ScenePanel {
 
         sceneRenderer.render(room, width, height);
         ImGui.image(sceneRenderer.getTextureHandle(), width, height, 0, 1, 1, 0);
-        sceneOverlay.draw(room, selection, ImGui.getItemRectMinX(), ImGui.getItemRectMinY());
+        imageX = ImGui.getItemRectMinX();
+        imageY = ImGui.getItemRectMinY();
+        boolean imageHovered = ImGui.isItemHovered();
+        handleAssetDrop();
 
-        boolean hovered = ImGui.isItemHovered();
-        handleSelecting(hovered);
+        sceneOverlay.draw(room, imageX, imageY);
+        toolbar.draw(imageX, imageY, width);
+
+        boolean hovered = imageHovered && !toolbar.isHovered();
+        handleToolInput(hovered);
         handlePanning(hovered);
         handleZooming(hovered);
     }
 
-    private void handleSelecting(boolean hovered) {
-        if (!hovered || !ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
-            return;
-        }
-        Vector2 world = camera.screenToWorld(getMouseX(), getMouseY());
-        Sprite sprite = spritePicker.findSpriteAt(room, world.x, world.y);
+    private void handleAssetDrop() {
+        ImageAsset dropped = AssetDragDrop.acceptDropOnLastItemWithoutOutline();
+        if (dropped == null) return;
 
-        if (sprite == null) {
-            selection.clear();
+        Vector2 world = getMouseWorld();
+        tools.dropAsset(room, dropped, world.x, world.y);
+    }
+
+    private void handleToolInput(boolean hovered) {
+        Vector2 world = getMouseWorld();
+        if (hovered && ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
+            tools.press(room, world.x, world.y);
+        }
+        if (!tools.isDragging()) return;
+
+        if (ImGui.isMouseDown(ImGuiMouseButton.Left)) {
+            tools.drag(world.x, world.y);
         } else {
-            selection.selectOnly(sprite);
+            tools.release();
         }
     }
 
+    private Vector2 getMouseWorld() {
+        return camera.screenToWorld(getMouseX(), getMouseY());
+    }
 
     private void handlePanning(boolean hovered) {
         if (hovered && isPanButtonClicked()) panning = true;
@@ -95,11 +112,11 @@ public class ScenePanel {
     }
 
     private float getMouseX() {
-        return ImGui.getMousePosX() - ImGui.getItemRectMinX();
+        return ImGui.getMousePosX() - imageX;
     }
 
     private float getMouseY() {
-        return ImGui.getMousePosY() - ImGui.getItemRectMinY();
+        return ImGui.getMousePosY() - imageY;
     }
 
     private boolean isPanButtonClicked() {
