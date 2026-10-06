@@ -5,6 +5,7 @@ import imgui.ImGui;
 import imgui.flag.ImGuiMouseButton;
 import lex.folio.assets.AssetLibrary;
 import lex.folio.command.CommandStack;
+import lex.folio.command.DeleteObjectsCommand;
 import lex.folio.model.Project;
 import lex.folio.model.Room;
 import lex.folio.model.SpriteLayer;
@@ -87,7 +88,20 @@ final class ProjectSession implements Disposable {
         inspectorPanel = new InspectorPanel(selection, new SpriteInspector(commandStack));
         assetsPanel = AssetsPanel.create(project, assetLibrary, commandStack, toolState, errorSink,
             this::assetRenamed);
-        shortcuts = new EditorShortcuts(commandStack, tools, toolState, scenePanel::saveActiveRoom);
+        shortcuts = new EditorShortcuts(commandStack, tools, toolState, scenePanel::saveActiveRoom,
+            () -> deleteSelection(commandStack));
+    }
+
+    /** Deletes the selected objects of the shown room as one undoable step. */
+    private void deleteSelection(CommandStack commandStack) {
+        Room room = scenePanel.getActiveRoom();
+        if (room == null || selection.isEmpty()) return;
+
+        DeleteObjectsCommand delete = DeleteObjectsCommand.of(room, selection.getObjects());
+        if (delete == null) return;
+
+        commandStack.execute(delete);
+        selection.clear();
     }
 
     private static boolean isRemembered(List<String> names, Room room) {

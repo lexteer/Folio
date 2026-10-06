@@ -59,6 +59,11 @@ public abstract sealed class Layer<T extends RoomObject> permits SpriteLayer {
         items.add(Objects.requireNonNull(item, "item"));
     }
 
+    /** Inserts the item so that it ends up at the index, which is where it is in the draw order. */
+    public void add(int index, T item) {
+        items.add(index, Objects.requireNonNull(item, "item"));
+    }
+
     public void remove(T item) {
         items.remove(item);
     }

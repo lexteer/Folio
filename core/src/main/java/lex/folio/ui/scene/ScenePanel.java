@@ -118,6 +118,11 @@ public class ScenePanel {
         roomsChanged();
     }
 
+    /** The room whose tab is shown, or null if no tab is open. */
+    public Room getActiveRoom() {
+        return activeTab == null ? null : activeTab.getRoom();
+    }
+
     public boolean canSaveActiveRoom() {
         return activeTab != null && activeTab.isUnsaved();
     }
