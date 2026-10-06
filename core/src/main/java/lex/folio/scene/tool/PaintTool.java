@@ -14,7 +14,7 @@ public class PaintTool implements SceneTool {
     }
 
     @Override
-    public void press(Room room, float worldX, float worldY) {
+    public void press(Room room, float worldX, float worldY, boolean additive) {
         ImageAsset asset = toolState.getArmedAsset();
         if (asset == null) return;
 

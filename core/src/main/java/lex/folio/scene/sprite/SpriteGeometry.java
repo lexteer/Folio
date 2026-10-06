@@ -44,6 +44,51 @@ public class SpriteGeometry {
         return point.add(sprite.getX(), sprite.getY());
     }
 
+    /** Whether the sprite's outline touches the axis aligned world rectangle. */
+    public boolean overlaps(Sprite sprite, float minX, float minY, float maxX, float maxY) {
+        float halfWidth = getWidth(sprite) / 2f;
+        float halfHeight = getHeight(sprite) / 2f;
+        Vector2[] corners = {
+            toWorld(sprite, -halfWidth, -halfHeight), toWorld(sprite, halfWidth, -halfHeight),
+            toWorld(sprite, halfWidth, halfHeight), toWorld(sprite, -halfWidth, halfHeight)
+        };
+
+        // Separating axis test: the rectangle's two axes, then the sprite's two edge directions.
+        float spriteMinX = Float.MAX_VALUE, spriteMinY = Float.MAX_VALUE;
+        float spriteMaxX = -Float.MAX_VALUE, spriteMaxY = -Float.MAX_VALUE;
+        for (Vector2 corner : corners) {
+            spriteMinX = Math.min(spriteMinX, corner.x);
+            spriteMaxX = Math.max(spriteMaxX, corner.x);
+            spriteMinY = Math.min(spriteMinY, corner.y);
+            spriteMaxY = Math.max(spriteMaxY, corner.y);
+        }
+        if (spriteMaxX < minX || spriteMinX > maxX || spriteMaxY < minY || spriteMinY > maxY) return false;
+
+        float[] rectX = {minX, maxX, maxX, minX};
+        float[] rectY = {minY, minY, maxY, maxY};
+        for (int i = 0; i < 2; i++) {
+            Vector2 edge = corners[i + 1].cpy().sub(corners[i]);
+            if (edge.isZero()) continue;
+
+            float axisX = -edge.y;
+            float axisY = edge.x;
+            float spriteLow = Float.MAX_VALUE, spriteHigh = -Float.MAX_VALUE;
+            for (Vector2 corner : corners) {
+                float projection = corner.x * axisX + corner.y * axisY;
+                spriteLow = Math.min(spriteLow, projection);
+                spriteHigh = Math.max(spriteHigh, projection);
+            }
+            float rectLow = Float.MAX_VALUE, rectHigh = -Float.MAX_VALUE;
+            for (int j = 0; j < 4; j++) {
+                float projection = rectX[j] * axisX + rectY[j] * axisY;
+                rectLow = Math.min(rectLow, projection);
+                rectHigh = Math.max(rectHigh, projection);
+            }
+            if (spriteHigh < rectLow || spriteLow > rectHigh) return false;
+        }
+        return true;
+    }
+
     public boolean contains(Sprite sprite, float worldX, float worldY) {
         if (sprite.getScaleX() == 0 || sprite.getScaleY() == 0) return false;
 

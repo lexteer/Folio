@@ -4,7 +4,8 @@ import lex.folio.model.Room;
 
 /** A tool the user can pick in the scene toolbar. Input arrives as world positions. */
 public interface SceneTool {
-    void press(Room room, float worldX, float worldY);
+    /** Additive means the user holds shift or ctrl, to add to what is selected instead of replacing it. */
+    void press(Room room, float worldX, float worldY, boolean additive);
 
     default boolean isDragging() {
         return false;

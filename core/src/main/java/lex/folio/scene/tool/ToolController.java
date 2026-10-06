@@ -19,9 +19,9 @@ public class ToolController {
         }
     }
 
-    public void press(Room room, float worldX, float worldY) {
+    public void press(Room room, float worldX, float worldY, boolean additive) {
         pressedTool = tools.get(toolState.getTool());
-        pressedTool.press(room, worldX, worldY);
+        pressedTool.press(room, worldX, worldY, additive);
     }
 
     public boolean isDragging() {

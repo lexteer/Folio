@@ -2,6 +2,7 @@ package lex.folio.ui.scene;
 
 import com.badlogic.gdx.math.Vector2;
 import imgui.ImGui;
+import imgui.ImGuiIO;
 import imgui.flag.ImGuiMouseButton;
 import lex.folio.model.Room;
 import lex.folio.scene.tool.ToolController;
@@ -16,10 +17,15 @@ class SceneToolInput {
         this.tools = tools;
     }
 
+    private static boolean isAdditive() {
+        ImGuiIO io = ImGui.getIO();
+        return io.getKeyShift() || io.getKeyCtrl();
+    }
+
     void handle(Room room, boolean hovered) {
         Vector2 world = viewport.getMouseWorld();
         if (hovered && ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
-            tools.press(room, world.x, world.y);
+            tools.press(room, world.x, world.y, isAdditive());
         }
         if (!tools.isDragging()) return;
 

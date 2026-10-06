@@ -1,9 +1,12 @@
 package lex.folio.app;
 
 import com.badlogic.gdx.utils.Disposable;
+import imgui.ImGui;
+import imgui.flag.ImGuiMouseButton;
 import lex.folio.assets.AssetLibrary;
 import lex.folio.command.CommandStack;
 import lex.folio.model.Project;
+import lex.folio.scene.BoxSelect;
 import lex.folio.scene.Selection;
 import lex.folio.scene.camera.SceneCamera;
 import lex.folio.scene.render.SceneRenderer;
@@ -38,6 +41,7 @@ final class Editor implements Disposable {
     private final InspectorPanel inspectorPanel;
     private final AssetsPanel assetsPanel;
     private final EditorShortcuts shortcuts;
+    private final Selection selection;
 
     Editor() {
         Project project = TestProject.load();
@@ -46,29 +50,33 @@ final class Editor implements Disposable {
 
         CommandStack commandStack = new CommandStack();
         Selection selection = new Selection();
+        BoxSelect boxSelect = new BoxSelect();
         ToolState toolState = new ToolState();
 
         SpriteGeometry spriteGeometry = new SpriteGeometry(assetLibrary, project.getPixelsPerMeter());
         SpritePlacer spritePlacer = new SpritePlacer(commandStack);
-        ToolController tools = createTools(commandStack, selection, toolState, spriteGeometry, spritePlacer);
+        ToolController tools = createTools(commandStack, selection, boxSelect, toolState, spriteGeometry, spritePlacer);
 
         SceneCamera camera = new SceneCamera(project.getPixelsPerMeter());
         SceneViewport viewport = new SceneViewport(camera);
         sceneRenderer = new SceneRenderer(camera, assetLibrary, spriteGeometry);
 
         scenePanel = new ScenePanel(TestProject.createRoom(), sceneRenderer, viewport,
-            new SceneOverlay(viewport, spriteGeometry, selection, toolState),
+            new SceneOverlay(viewport, spriteGeometry, selection, boxSelect, toolState),
             new SceneInput(viewport, tools, spritePlacer));
+        this.selection = selection;
         inspectorPanel = new InspectorPanel(selection, new SpriteInspector(commandStack));
         assetsPanel = AssetsPanel.create(project, assetLibrary, commandStack, toolState);
         shortcuts = new EditorShortcuts(commandStack, tools, toolState);
     }
 
     /** Add a tool here, and to the {@link Tool} enum, to make it available. */
-    private static ToolController createTools(CommandStack commandStack, Selection selection, ToolState toolState,
-                                              SpriteGeometry spriteGeometry, SpritePlacer spritePlacer) {
+    private static ToolController createTools(CommandStack commandStack, Selection selection, BoxSelect boxSelect,
+                                              ToolState toolState, SpriteGeometry spriteGeometry,
+                                              SpritePlacer spritePlacer) {
         Map<Tool, SceneTool> tools = new EnumMap<>(Tool.class);
-        tools.put(Tool.SELECT, new SelectTool(new SpritePicker(spriteGeometry), selection, new SpriteDrag(commandStack)));
+        tools.put(Tool.SELECT, new SelectTool(new SpritePicker(spriteGeometry), selection,
+            new SpriteDrag(commandStack), boxSelect));
         tools.put(Tool.PAINT, new PaintTool(toolState, spritePlacer));
         return new ToolController(toolState, tools);
     }
@@ -77,7 +85,16 @@ final class Editor implements Disposable {
         scenePanel.draw();
         inspectorPanel.draw();
         assetsPanel.draw();
+        deselectWhenClickedOutsideSceneAndInspector();
         shortcuts.handle();
+    }
+
+    /** The inspector edits the selection, so it has to keep it. The scene handles its own clicks. */
+    private void deselectWhenClickedOutsideSceneAndInspector() {
+        boolean clicked = ImGui.isMouseClicked(ImGuiMouseButton.Left) || ImGui.isMouseClicked(ImGuiMouseButton.Right);
+        if (clicked && !scenePanel.isHovered() && !inspectorPanel.isHovered()) {
+            selection.clear();
+        }
     }
 
     void filesDropped(List<Path> files) {
