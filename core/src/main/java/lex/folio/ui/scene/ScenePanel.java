@@ -1,13 +1,14 @@
 package lex.folio.ui.scene;
 
-import imgui.ImGui;
 import imgui.ImGuiWindowClass;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiHoveredFlags;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiTabBarFlags;
 import imgui.flag.ImGuiTabItemFlags;
 import imgui.flag.ImGuiWindowFlags;
+import imgui.internal.ImGui;
 import imgui.internal.flag.ImGuiDockNodeFlags;
 import lex.folio.model.Room;
 import lex.folio.scene.Selection;
@@ -29,7 +30,7 @@ public class ScenePanel {
     private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse
         | ImGuiWindowFlags.NoCollapse;
     private static final int TAB_BAR_FLAGS = ImGuiTabBarFlags.Reorderable | ImGuiTabBarFlags.FittingPolicyScroll;
-    /** Keeps the dock node from becoming a tab group: the plain title bar stays, and is the handle for moving it. */
+    /** Keeps the dock node from becoming a tab group, and from showing any tab or title bar of its own. */
     private static final int DOCK_NODE_FLAGS = ImGuiDockNodeFlags.NoTabBar
         | ImGuiDockNodeFlags.NoDockingOverMe | ImGuiDockNodeFlags.NoDockingOverOther;
 
@@ -45,6 +46,7 @@ public class ScenePanel {
     private RoomTab activeTab;
     private RoomTab tabToSelect;
     private boolean hovered;
+    private boolean movingWindow;
 
     public ScenePanel(List<Room> rooms, float pixelsPerMeter, Function<String, Room> roomFactory,
                       SceneRenderer renderer, SceneViewport viewport, SceneOverlay overlay, SceneInput input,
@@ -72,24 +74,45 @@ public class ScenePanel {
     public void draw() {
         ImGui.setNextWindowClass(windowClass);
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0, 0);
-        int titleColors = pushFlatTitleBarColors();
         boolean visible = ImGui.begin(TITLE, WINDOW_FLAGS);
-        ImGui.popStyleColor(titleColors);
         ImGui.popStyleVar();
         hovered = ImGui.isWindowHovered(ImGuiHoveredFlags.RootAndChildWindows);
 
         if (visible) {
+            drawHeader();
             drawTabs();
         }
         ImGui.end();
     }
 
-    /** Makes the title bar one plain colour, whether or not the panel is focused. Returns how many were pushed. */
-    private static int pushFlatTitleBarColors() {
-        int color = ImGui.getColorU32(ImGuiCol.TitleBg);
-        ImGui.pushStyleColor(ImGuiCol.TitleBgActive, color);
-        ImGui.pushStyleColor(ImGuiCol.TitleBgCollapsed, color);
-        return 2;
+    /**
+     * The plain bar at the top, standing in for the title bar that a docked window without a tab bar doesn't get.
+     * Dragging anywhere on it moves the whole panel, undocking it first if it is docked.
+     */
+    private void drawHeader() {
+        float width = ImGui.getContentRegionAvailX();
+        float height = ImGui.getFrameHeight();
+        float x = ImGui.getCursorScreenPosX();
+        float y = ImGui.getCursorScreenPosY();
+
+        ImGui.getWindowDrawList().addRectFilled(x, y, x + width, y + height, ImGui.getColorU32(ImGuiCol.TitleBg));
+        ImGui.getWindowDrawList().addText(x + ImGui.getStyle().getFramePaddingX() * 2f,
+            y + ImGui.getStyle().getFramePaddingY(), ImGui.getColorU32(ImGuiCol.Text), TITLE);
+        ImGui.invisibleButton("##SceneHeader", width, height);
+        moveWindowWhenDragged();
+    }
+
+    private void moveWindowWhenDragged() {
+        if (!ImGui.isMouseDown(ImGuiMouseButton.Left)) movingWindow = false;
+        if (movingWindow || !ImGui.isItemActive() || !ImGui.isMouseDragging(ImGuiMouseButton.Left)) return;
+
+        movingWindow = true;
+        int dockId = ImGui.getWindowDockID();
+        if (dockId == 0) {
+            ImGui.startMouseMovingWindow(ImGui.getCurrentWindow());
+        } else {
+            ImGui.startMouseMovingWindowOrNode(ImGui.getCurrentWindow(), ImGui.dockBuilderGetNode(dockId), true);
+        }
     }
 
     public void dispose() {
