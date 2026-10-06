@@ -10,7 +10,7 @@ import java.util.stream.Stream;
 
 /**
  * Temporary: registers every PNG in the project's assets folder as an asset.
- * Goes away once assets come from importing and from project.json.
+ * Goes away once assets come from importing and from the project file.
  */
 public final class AssetFolderScanner {
     private static final String TAG = "AssetFolderScanner";

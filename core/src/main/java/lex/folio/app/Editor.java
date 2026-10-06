@@ -2,108 +2,105 @@ package lex.folio.app;
 
 import com.badlogic.gdx.utils.Disposable;
 import imgui.ImGui;
-import imgui.flag.ImGuiMouseButton;
-import lex.folio.assets.AssetLibrary;
-import lex.folio.command.CommandStack;
+import imgui.ImVec2;
+import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiWindowFlags;
 import lex.folio.model.Project;
-import lex.folio.scene.BoxSelect;
-import lex.folio.scene.Selection;
-import lex.folio.scene.camera.SceneCamera;
-import lex.folio.scene.render.SceneRenderer;
-import lex.folio.scene.sprite.SpriteDrag;
-import lex.folio.scene.sprite.SpriteGeometry;
-import lex.folio.scene.sprite.SpritePicker;
-import lex.folio.scene.sprite.SpritePlacer;
-import lex.folio.scene.tool.PaintTool;
-import lex.folio.scene.tool.SceneTool;
-import lex.folio.scene.tool.SelectTool;
-import lex.folio.scene.tool.Tool;
-import lex.folio.scene.tool.ToolController;
-import lex.folio.scene.tool.ToolState;
-import lex.folio.ui.assets.AssetsPanel;
-import lex.folio.ui.inspector.InspectorPanel;
-import lex.folio.ui.inspector.SpriteInspector;
-import lex.folio.ui.scene.SceneInput;
-import lex.folio.ui.scene.SceneOverlay;
-import lex.folio.ui.scene.ScenePanel;
-import lex.folio.ui.scene.SceneViewport;
+import lex.folio.project.ProjectStorage;
+import lex.folio.ui.common.NativeFileDialog;
 
+import java.io.IOException;
 import java.nio.file.Path;
-import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
 
-/** The editor itself: creates the parts, wires them together and draws them every frame. */
+/** The editor itself: owns the main menu and the open project, if any, and draws them every frame. */
 final class Editor implements Disposable {
-    private final AssetLibrary assetLibrary;
-    private final SceneRenderer sceneRenderer;
-    private final ScenePanel scenePanel;
-    private final InspectorPanel inspectorPanel;
-    private final AssetsPanel assetsPanel;
-    private final EditorShortcuts shortcuts;
-    private final Selection selection;
+    private static final String ERROR_POPUP = "Project error";
+    private static final String HINT = "Use File > New Project or File > Open Project to get started.";
 
-    Editor() {
-        Project project = TestProject.load();
-        assetLibrary = new AssetLibrary(project);
-        assetLibrary.loadAll();
-
-        CommandStack commandStack = new CommandStack();
-        Selection selection = new Selection();
-        BoxSelect boxSelect = new BoxSelect();
-        ToolState toolState = new ToolState();
-
-        SpriteGeometry spriteGeometry = new SpriteGeometry(assetLibrary, project.getPixelsPerMeter());
-        SpritePlacer spritePlacer = new SpritePlacer(commandStack);
-        ToolController tools = createTools(commandStack, selection, boxSelect, toolState, spriteGeometry, spritePlacer);
-
-        SceneCamera camera = new SceneCamera(project.getPixelsPerMeter());
-        SceneViewport viewport = new SceneViewport(camera);
-        sceneRenderer = new SceneRenderer(camera, assetLibrary, spriteGeometry);
-
-        scenePanel = new ScenePanel(TestProject.createRoom(), sceneRenderer, viewport,
-            new SceneOverlay(viewport, spriteGeometry, selection, boxSelect, toolState),
-            new SceneInput(viewport, tools, spritePlacer));
-        this.selection = selection;
-        inspectorPanel = new InspectorPanel(selection, new SpriteInspector(commandStack));
-        assetsPanel = AssetsPanel.create(project, assetLibrary, commandStack, toolState);
-        shortcuts = new EditorShortcuts(commandStack, tools, toolState);
-    }
-
-    /** Add a tool here, and to the {@link Tool} enum, to make it available. */
-    private static ToolController createTools(CommandStack commandStack, Selection selection, BoxSelect boxSelect,
-                                              ToolState toolState, SpriteGeometry spriteGeometry,
-                                              SpritePlacer spritePlacer) {
-        Map<Tool, SceneTool> tools = new EnumMap<>(Tool.class);
-        tools.put(Tool.SELECT, new SelectTool(new SpritePicker(spriteGeometry), selection,
-            new SpriteDrag(commandStack), boxSelect));
-        tools.put(Tool.PAINT, new PaintTool(toolState, spritePlacer));
-        return new ToolController(toolState, tools);
-    }
+    private final NativeFileDialog fileDialog = new NativeFileDialog();
+    private ProjectSession session;
+    private String error;
 
     void draw() {
-        scenePanel.draw();
-        inspectorPanel.draw();
-        assetsPanel.draw();
-        deselectWhenClickedOutsideSceneAndInspector();
-        shortcuts.handle();
+        drawMainMenu();
+        if (session != null) {
+            session.draw();
+        } else {
+            drawHint();
+        }
+        drawErrorPopup();
     }
 
-    /** The inspector edits the selection, so it has to keep it. The scene handles its own clicks. */
-    private void deselectWhenClickedOutsideSceneAndInspector() {
-        boolean clicked = ImGui.isMouseClicked(ImGuiMouseButton.Left) || ImGui.isMouseClicked(ImGuiMouseButton.Right);
-        if (clicked && !scenePanel.isHovered() && !inspectorPanel.isHovered()) {
-            selection.clear();
+    private void drawMainMenu() {
+        if (!ImGui.beginMainMenuBar()) return;
+
+        if (ImGui.beginMenu("File")) {
+            boolean enabled = !fileDialog.isOpen();
+            if (ImGui.menuItem("New Project...", "", false, enabled)) {
+                fileDialog.chooseFolder("Choose a folder for the new project", this::createProject);
+            }
+            if (ImGui.menuItem("Open Project...", "", false, enabled)) {
+                fileDialog.chooseFolder("Open a Folio project folder", this::openProject);
+            }
+            ImGui.endMenu();
+        }
+        ImGui.endMainMenuBar();
+    }
+
+    private void drawHint() {
+        ImVec2 center = ImGui.getMainViewport().getCenter();
+        ImVec2 size = new ImVec2();
+        ImGui.calcTextSize(size, HINT);
+        ImGui.getBackgroundDrawList().addText(center.x - size.x / 2, center.y - size.y / 2,
+            ImGui.getColorU32(ImGuiCol.TextDisabled), HINT);
+    }
+
+    private void drawErrorPopup() {
+        if (error != null) {
+            ImGui.openPopup(ERROR_POPUP);
+        }
+        if (ImGui.beginPopupModal(ERROR_POPUP, ImGuiWindowFlags.AlwaysAutoResize)) {
+            ImGui.text(error == null ? "" : error);
+            if (ImGui.button("OK")) {
+                error = null;
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.endPopup();
         }
     }
 
+    private void createProject(Path folder) {
+        load(() -> ProjectStorage.create(folder));
+    }
+
+    private void openProject(Path folder) {
+        load(() -> ProjectStorage.open(folder));
+    }
+
+    private void load(ProjectLoader loader) {
+        Project project;
+        try {
+            project = loader.load();
+        } catch (IOException e) {
+            error = e.getMessage();
+            return;
+        }
+
+        if (session != null) session.dispose();
+        session = new ProjectSession(project);
+    }
+
     void filesDropped(List<Path> files) {
-        assetsPanel.filesDropped(files);
+        if (session != null) session.filesDropped(files);
     }
 
     @Override
     public void dispose() {
-        sceneRenderer.dispose();
-        assetLibrary.dispose();
+        if (session != null) session.dispose();
+    }
+
+    private interface ProjectLoader {
+        Project load() throws IOException;
     }
 }
