@@ -29,6 +29,13 @@ public final class NativeFileDialog {
         });
     }
 
+    /** Calls {@code onChosen} with the file, or not at all if the dialog was cancelled. */
+    public void chooseFile(String title, Path startFolder, String filter, String description, Consumer<Path> onChosen) {
+        runInBackground(() -> showFileDialog(title, startFolder, filter, description), file -> {
+            if (file != null) onChosen.accept(file);
+        });
+    }
+
     private <T> void runInBackground(Supplier<T> dialog, Consumer<T> onChosen) {
         if (open) return;
         open = true;
@@ -57,6 +64,22 @@ public final class NativeFileDialog {
         } catch (RuntimeException e) {
             Gdx.app.error(TAG, "File dialog failed", e);
             return List.of();
+        }
+    }
+
+    private static Path showFileDialog(String title, Path startFolder, String filter, String description) {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            PointerBuffer filters = stack.mallocPointer(1);
+            filters.put(stack.UTF8(filter));
+            filters.flip();
+
+            // A trailing separator makes the dialog start inside the folder instead of selecting it.
+            String start = startFolder == null ? null : startFolder + java.io.File.separator;
+            String result = TinyFileDialogs.tinyfd_openFileDialog(title, start, filters, description, false);
+            return result == null ? null : Path.of(result);
+        } catch (RuntimeException e) {
+            Gdx.app.error(TAG, "File dialog failed", e);
+            return null;
         }
     }
 

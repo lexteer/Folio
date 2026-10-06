@@ -1,5 +1,6 @@
 package lex.folio.app;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.utils.Disposable;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
@@ -56,14 +57,30 @@ final class Editor implements Disposable {
         if (ImGui.beginMenu("File")) {
             boolean enabled = !fileDialog.isOpen();
             if (ImGui.menuItem("New Project...", "", false, enabled)) {
-                newProjectDialog.open();
+                leaveProject(newProjectDialog::open);
             }
             if (ImGui.menuItem("Open Project...", "", false, enabled)) {
-                chooseProjectToOpen();
+                leaveProject(this::chooseProjectToOpen);
+            }
+            ImGui.separator();
+            if (ImGui.menuItem("Open Room...", "", false, enabled && session != null)) {
+                chooseRoomToOpen();
+            }
+            if (ImGui.menuItem("Save", "Ctrl+S", false, session != null && session.canSaveActiveRoom())) {
+                session.saveActiveRoom();
             }
             ImGui.endMenu();
         }
         ImGui.endMainMenuBar();
+    }
+
+    /** Runs {@code action}, which replaces the open project, after asking about unsaved rooms. */
+    private void leaveProject(Runnable action) {
+        if (session == null) {
+            action.run();
+        } else {
+            session.runWhenNothingIsUnsaved(action);
+        }
     }
 
     /** Shown instead of a blank editor while no project is open. */
@@ -93,6 +110,12 @@ final class Editor implements Disposable {
         fileDialog.chooseFolder("Open a Folio project folder", this::openProject);
     }
 
+    private void chooseRoomToOpen() {
+        fileDialog.chooseFile("Open a room", session.getRoomsFolder(), "*.json", "Folio rooms", file -> {
+            if (session != null) session.openRoomFile(file);
+        });
+    }
+
     private void drawErrorPopup() {
         if (error != null) {
             ImGui.openPopup(ERROR_POPUP);
@@ -107,6 +130,14 @@ final class Editor implements Disposable {
         }
     }
 
+    /** Returns whether the window may close now. If rooms are unsaved it asks about them first and closes later. */
+    boolean requestClose() {
+        if (session == null || !session.hasUnsavedRooms()) return true;
+
+        session.runWhenNothingIsUnsaved(Gdx.app::exit);
+        return false;
+    }
+
     private void createProject(Path parentFolder, String name, float pixelsPerMeter) throws IOException {
         show(ProjectStorage.create(parentFolder, name, pixelsPerMeter));
     }
@@ -119,9 +150,10 @@ final class Editor implements Disposable {
         }
     }
 
-    private void show(Project project) {
+    private void show(Project project) throws IOException {
+        ProjectSession opened = new ProjectSession(project, message -> error = message);
         if (session != null) session.dispose();
-        session = new ProjectSession(project);
+        session = opened;
         lastProject.save(project.getRootFolder());
     }
 

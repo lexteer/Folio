@@ -17,6 +17,11 @@ public class Lwjgl3Launcher {
         Lwjgl3ApplicationConfiguration config = getDefaultConfiguration();
         config.setWindowListener(new Lwjgl3WindowAdapter() {
             @Override
+            public boolean closeRequested() {
+                return editorApp.requestClose();
+            }
+
+            @Override
             public void filesDropped(String[] files) {
                 editorApp.filesDropped(files);
             }
