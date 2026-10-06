@@ -69,7 +69,6 @@ final class NewProjectDialog {
         if (ImGui.button("Browse...") && !fileDialog.isOpen()) {
             fileDialog.chooseFolder("Choose where to create the project", folder -> location.set(folder.toString()));
         }
-        ImGui.textDisabled("A new folder named after the project is created in this location.");
 
         if (error != null) {
             ImGui.pushStyleColor(ImGuiCol.Text, 1f, 0.4f, 0.4f, 1f);

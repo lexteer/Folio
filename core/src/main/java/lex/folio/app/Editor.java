@@ -18,8 +18,25 @@ final class Editor implements Disposable {
 
     private final NativeFileDialog fileDialog = new NativeFileDialog();
     private final NewProjectDialog newProjectDialog = new NewProjectDialog(fileDialog, this::createProject);
+    private final LastProject lastProject = new LastProject();
     private ProjectSession session;
     private String error;
+
+    Editor() {
+        reopenLastProject();
+    }
+
+    /** Picks up where the last run left off. If the project is gone, the welcome popup shows as usual. */
+    private void reopenLastProject() {
+        Path folder = lastProject.find();
+        if (folder == null) return;
+
+        try {
+            show(ProjectStorage.open(folder));
+        } catch (IOException e) {
+            lastProject.clear();
+        }
+    }
 
     void draw() {
         drawMainMenu();
@@ -105,6 +122,7 @@ final class Editor implements Disposable {
     private void show(Project project) {
         if (session != null) session.dispose();
         session = new ProjectSession(project);
+        lastProject.save(project.getRootFolder());
     }
 
     void filesDropped(List<Path> files) {

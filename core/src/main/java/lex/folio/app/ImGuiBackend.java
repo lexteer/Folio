@@ -5,6 +5,7 @@ import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.utils.Disposable;
 import imgui.ImGui;
 import imgui.ImGuiIO;
+import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiConfigFlags;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
@@ -52,6 +53,9 @@ public class ImGuiBackend implements Disposable {
         layoutFile.parent().mkdirs();
         io.setIniFilename(layoutFile.file().getAbsolutePath());
         io.setConfigWindowsMoveFromTitleBarOnly(true);
+
+        // No dimming behind modal popups.
+        ImGui.getStyle().setColor(ImGuiCol.ModalWindowDimBg, 0f, 0f, 0f, 0f);
     }
 
     public boolean hadSavedLayout() {
