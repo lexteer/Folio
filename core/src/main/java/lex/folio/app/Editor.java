@@ -57,10 +57,10 @@ final class Editor implements Disposable {
         if (ImGui.beginMenu("File")) {
             boolean enabled = !fileDialog.isOpen();
             if (ImGui.menuItem("New Project...", "", false, enabled)) {
-                newProjectDialog.open();
+                leaveProject(newProjectDialog::open);
             }
             if (ImGui.menuItem("Open Project...", "", false, enabled)) {
-                chooseProjectToOpen();
+                leaveProject(this::chooseProjectToOpen);
             }
             ImGui.separator();
             if (ImGui.menuItem("Save", "Ctrl+S", false, session != null && session.canSaveActiveRoom())) {
@@ -69,6 +69,15 @@ final class Editor implements Disposable {
             ImGui.endMenu();
         }
         ImGui.endMainMenuBar();
+    }
+
+    /** Runs {@code action}, which replaces the open project, after asking about unsaved rooms. */
+    private void leaveProject(Runnable action) {
+        if (session == null) {
+            action.run();
+        } else {
+            session.runWhenNothingIsUnsaved(action);
+        }
     }
 
     /** Shown instead of a blank editor while no project is open. */

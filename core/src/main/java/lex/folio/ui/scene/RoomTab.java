@@ -13,6 +13,8 @@ final class RoomTab {
     /** What the room looked like when it was last saved or loaded; null while it was never saved. */
     private String savedSnapshot;
     private boolean unsaved = true;
+    /** The name the room had when it was saved, which names its file; null while it was never saved. */
+    private String savedName;
 
     RoomTab(Room room, SceneCamera camera) {
         this.room = room;
@@ -31,7 +33,12 @@ final class RoomTab {
         return unsaved;
     }
 
+    String getSavedName() {
+        return savedName;
+    }
+
     void markSaved(String snapshot) {
+        savedName = room.getName();
         savedSnapshot = snapshot;
         unsaved = false;
     }

@@ -42,8 +42,12 @@ public final class RoomStorage {
         return rooms;
     }
 
-    /** Writes the room to its file, replacing what was saved before. Returns what was written. */
-    public String save(Room room) throws IOException {
+    /**
+     * Writes the room to its file, replacing what was saved before. Returns what was written.
+     *
+     * @param previousName the name the room was last saved under, or null; its file goes away if the name changed
+     */
+    public String save(Room room, String previousName) throws IOException {
         String text = snapshot(room);
         Files.createDirectories(folder);
 
@@ -51,6 +55,12 @@ public final class RoomStorage {
         Path temporary = file.resolveSibling(file.getFileName() + ".tmp");
         Files.writeString(temporary, text, StandardCharsets.UTF_8);
         Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING);
+
+        if (previousName != null && !previousName.equals(room.getName())) {
+            Path old = fileOf(previousName);
+            // On a case-insensitive file system a renamed-by-case room has the same file.
+            if (Files.exists(old) && !Files.isSameFile(old, file)) Files.delete(old);
+        }
         return text;
     }
 

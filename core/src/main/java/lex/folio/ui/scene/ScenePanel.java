@@ -10,6 +10,8 @@ import imgui.flag.ImGuiTabItemFlags;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.internal.ImGui;
 import imgui.type.ImBoolean;
+import imgui.type.ImString;
+import imgui.flag.ImGuiInputTextFlags;
 import imgui.internal.ImGuiDockNode;
 import imgui.internal.flag.ImGuiDockNodeFlags;
 import lex.folio.model.Room;
@@ -19,9 +21,7 @@ import lex.folio.project.RoomStorage;
 import lex.folio.scene.render.SceneRenderer;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -35,6 +35,8 @@ public class ScenePanel {
     private static final String NEW_ROOM_BUTTON = "+";
     private static final String ROOM_NAME_PREFIX = "Room ";
     private static final String UNSAVED_POPUP = "Unsaved changes";
+    private static final int RENAME_MAX_LENGTH = 128;
+    private static final float RENAME_MIN_WIDTH = 100f;
     private static final int WINDOW_FLAGS = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse
         | ImGuiWindowFlags.NoCollapse;
     private static final int TAB_BAR_FLAGS = ImGuiTabBarFlags.Reorderable | ImGuiTabBarFlags.FittingPolicyScroll;
@@ -58,9 +60,16 @@ public class ScenePanel {
     private boolean hovered;
     private boolean movingWindow;
     private boolean recheckUnsaved;
-    private final Deque<RoomTab> tabsToAskAbout = new ArrayDeque<>();
-    private boolean closeTabsAfterAsking;
-    private Runnable afterAsking;
+    /** The tab whose close button was clicked while it has unsaved changes, while the user is being asked. */
+    private RoomTab tabAskedToClose;
+    /** What to do once the user has dealt with all unsaved rooms, while they are being asked. */
+    private Runnable afterLeavePrompt;
+    private RoomTab renamingTab;
+    private final ImString renameText = new ImString(RENAME_MAX_LENGTH);
+    private boolean renameActive;
+    private float renameX;
+    private float renameY;
+    private float renameWidth;
 
     /** @param savedRooms rooms that were loaded from storage, so they start out without unsaved changes */
     public ScenePanel(List<Room> savedRooms, float pixelsPerMeter, Function<String, Room> roomFactory,
@@ -110,18 +119,18 @@ public class ScenePanel {
         return tabs.stream().anyMatch(RoomTab::isUnsaved);
     }
 
-    /** Asks about each room with unsaved changes, then runs {@code action}. Cancelling anywhere abandons it. */
+    /** Runs {@code action} now if no room has unsaved changes. Otherwise asks first, and runs it unless cancelled. */
     public void runWhenNothingIsUnsaved(Runnable action) {
-        if (!tabsToAskAbout.isEmpty()) return;
-
-        tabs.stream().filter(RoomTab::isUnsaved).forEach(tabsToAskAbout::add);
-        closeTabsAfterAsking = false;
-        afterAsking = action;
+        if (!hasUnsavedRooms()) {
+            action.run();
+        } else if (tabAskedToClose == null && afterLeavePrompt == null) {
+            afterLeavePrompt = action;
+        }
     }
 
     private boolean save(RoomTab tab) {
         try {
-            tab.markSaved(storage.save(tab.getRoom()));
+            tab.markSaved(storage.save(tab.getRoom(), tab.getSavedName()));
             return true;
         } catch (IOException e) {
             errorSink.accept("Could not save room \"" + tab.getRoom().getName() + "\": " + e.getMessage());
@@ -134,9 +143,7 @@ public class ScenePanel {
             closeTab(tab);
             return;
         }
-        tabsToAskAbout.add(tab);
-        closeTabsAfterAsking = true;
-        afterAsking = null;
+        if (tabAskedToClose == null && afterLeavePrompt == null) tabAskedToClose = tab;
     }
 
     private void closeTab(RoomTab tab) {
@@ -145,6 +152,7 @@ public class ScenePanel {
             activeTab = null;
             selection.clear();
         }
+        if (tab == renamingTab) renamingTab = null;
     }
 
     public void draw() {
@@ -172,19 +180,27 @@ public class ScenePanel {
         }
     }
 
-    /** Asks, one room at a time, whether to save it. Draws nothing when there is nothing to ask. */
+    /** Asks whether to save: the one room being closed, or all unsaved rooms when leaving. */
     private void drawUnsavedPrompt() {
-        RoomTab tab = tabsToAskAbout.peek();
-        if (tab == null) return;
+        List<RoomTab> unsaved = tabAskedToClose != null ? List.of(tabAskedToClose)
+            : afterLeavePrompt != null ? tabs.stream().filter(RoomTab::isUnsaved).toList() : List.of();
+        if (unsaved.isEmpty()) return;
 
         if (!ImGui.isPopupOpen(UNSAVED_POPUP)) {
             ImGui.openPopup(UNSAVED_POPUP);
         }
         if (!ImGui.beginPopupModal(UNSAVED_POPUP, ImGuiWindowFlags.AlwaysAutoResize)) return;
 
-        ImGui.text("Room \"" + tab.getRoom().getName() + "\" has unsaved changes. Save it?");
+        if (unsaved.size() == 1) {
+            ImGui.text("Room \"" + unsaved.get(0).getRoom().getName() + "\" has unsaved changes.");
+        } else {
+            ImGui.text("These rooms have unsaved changes:");
+            for (RoomTab tab : unsaved) {
+                ImGui.bulletText(tab.getRoom().getName());
+            }
+        }
         ImGui.spacing();
-        boolean save = ImGui.button("Save");
+        boolean save = ImGui.button(unsaved.size() == 1 ? "Save" : "Save All");
         ImGui.sameLine();
         boolean discard = ImGui.button("Don't Save");
         ImGui.sameLine();
@@ -192,18 +208,28 @@ public class ScenePanel {
         if (save || discard || cancel) ImGui.closeCurrentPopup();
         ImGui.endPopup();
 
-        if (cancel || (save && !save(tab))) {
-            tabsToAskAbout.clear();
-            afterAsking = null;
+        if (cancel || (save && !saveAll(unsaved))) {
+            tabAskedToClose = null;
+            afterLeavePrompt = null;
         } else if (save || discard) {
-            tabsToAskAbout.remove();
-            if (closeTabsAfterAsking) closeTab(tab);
-            if (tabsToAskAbout.isEmpty() && afterAsking != null) {
-                Runnable action = afterAsking;
-                afterAsking = null;
-                action.run();
-            }
+            finishPrompt();
         }
+    }
+
+    private boolean saveAll(List<RoomTab> toSave) {
+        for (RoomTab tab : toSave) {
+            if (!save(tab)) return false;
+        }
+        return true;
+    }
+
+    private void finishPrompt() {
+        RoomTab tab = tabAskedToClose;
+        Runnable action = afterLeavePrompt;
+        tabAskedToClose = null;
+        afterLeavePrompt = null;
+        if (tab != null) closeTab(tab);
+        if (action != null) action.run();
     }
 
     /** A floating panel has a title bar of its own, which already moves it. */
@@ -260,6 +286,7 @@ public class ScenePanel {
             addRoom = ImGui.tabItemButton(NEW_ROOM_BUTTON, ImGuiTabItemFlags.Trailing | ImGuiTabItemFlags.NoTooltip);
             ImGui.endTabBar();
         }
+        drawRenameInput();
         if (tabToClose != null) {
             requestClose(tabToClose);
         }
@@ -273,7 +300,9 @@ public class ScenePanel {
         int flags = tab == tabToSelect ? ImGuiTabItemFlags.SetSelected : ImGuiTabItemFlags.None;
         if (tab.isUnsaved()) flags |= ImGuiTabItemFlags.UnsavedDocument;
         ImBoolean open = new ImBoolean(true);
-        if (!ImGui.beginTabItem(tab.getLabel(), open, flags)) return open.get();
+        boolean selected = ImGui.beginTabItem(tab.getLabel(), open, flags);
+        trackRename(tab);
+        if (!selected) return open.get();
 
         if (tab == tabToSelect) tabToSelect = null;
         if (tab != activeTab) {
@@ -284,6 +313,61 @@ public class ScenePanel {
         drawContent(tab);
         ImGui.endTabItem();
         return open.get();
+    }
+
+    /** Call right after a tab item: the tab is the last item. Double clicking it starts renaming. */
+    private void trackRename(RoomTab tab) {
+        if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left)) {
+            renamingTab = tab;
+            renameText.set(tab.getRoom().getName());
+            renameActive = false;
+        }
+        if (tab == renamingTab) {
+            renameX = ImGui.getItemRectMinX();
+            renameY = ImGui.getItemRectMinY();
+            renameWidth = Math.max(RENAME_MIN_WIDTH, ImGui.getItemRectMaxX() - renameX);
+        }
+    }
+
+    /** A text field over the tab being renamed. It starts with everything selected and applies when it loses focus. */
+    private void drawRenameInput() {
+        if (renamingTab == null) return;
+
+        ImGui.setCursorScreenPos(renameX, renameY);
+        ImGui.setNextItemWidth(renameWidth);
+        if (!renameActive) ImGui.setKeyboardFocusHere();
+        ImGui.inputText("##RenameRoom", renameText, ImGuiInputTextFlags.AutoSelectAll | ImGuiInputTextFlags.EnterReturnsTrue);
+        if (ImGui.isItemActive()) {
+            renameActive = true;
+        } else if (renameActive) {
+            RoomTab tab = renamingTab;
+            renamingTab = null;
+            rename(tab, renameText.get().trim());
+        }
+    }
+
+    private void rename(RoomTab tab, String name) {
+        Room room = tab.getRoom();
+        if (name.equals(room.getName())) return;
+
+        String problem = nameProblem(tab, name);
+        if (problem != null) {
+            errorSink.accept(problem);
+            return;
+        }
+        room.setName(name);
+        recheckUnsaved = true;
+    }
+
+    private String nameProblem(RoomTab tab, String name) {
+        if (name.isEmpty()) return "A room needs a name.";
+        if (name.matches(".*[\\\\/:*?\"<>|].*")) return "A room name cannot contain any of \\ / : * ? \" < > |";
+
+        boolean usedByOpenRoom = tabs.stream().anyMatch(other -> other != tab
+            && other.getRoom().getName().equalsIgnoreCase(name));
+        boolean usedBySavedRoom = storage.exists(name) && !name.equalsIgnoreCase(tab.getSavedName());
+        if (usedByOpenRoom || usedBySavedRoom) return "There is already a room called \"" + name + "\".";
+        return null;
     }
 
     private String newRoomName() {
