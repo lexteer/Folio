@@ -2,108 +2,135 @@ package lex.folio.app;
 
 import com.badlogic.gdx.utils.Disposable;
 import imgui.ImGui;
-import imgui.flag.ImGuiMouseButton;
-import lex.folio.assets.AssetLibrary;
-import lex.folio.command.CommandStack;
+import imgui.flag.ImGuiWindowFlags;
 import lex.folio.model.Project;
-import lex.folio.scene.BoxSelect;
-import lex.folio.scene.Selection;
-import lex.folio.scene.camera.SceneCamera;
-import lex.folio.scene.render.SceneRenderer;
-import lex.folio.scene.sprite.SpriteDrag;
-import lex.folio.scene.sprite.SpriteGeometry;
-import lex.folio.scene.sprite.SpritePicker;
-import lex.folio.scene.sprite.SpritePlacer;
-import lex.folio.scene.tool.PaintTool;
-import lex.folio.scene.tool.SceneTool;
-import lex.folio.scene.tool.SelectTool;
-import lex.folio.scene.tool.Tool;
-import lex.folio.scene.tool.ToolController;
-import lex.folio.scene.tool.ToolState;
-import lex.folio.ui.assets.AssetsPanel;
-import lex.folio.ui.inspector.InspectorPanel;
-import lex.folio.ui.inspector.SpriteInspector;
-import lex.folio.ui.scene.SceneInput;
-import lex.folio.ui.scene.SceneOverlay;
-import lex.folio.ui.scene.ScenePanel;
-import lex.folio.ui.scene.SceneViewport;
+import lex.folio.project.ProjectStorage;
+import lex.folio.ui.common.NativeFileDialog;
 
+import java.io.IOException;
 import java.nio.file.Path;
-import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
 
-/** The editor itself: creates the parts, wires them together and draws them every frame. */
+/** The editor itself: owns the main menu and the open project, if any, and draws them every frame. */
 final class Editor implements Disposable {
-    private final AssetLibrary assetLibrary;
-    private final SceneRenderer sceneRenderer;
-    private final ScenePanel scenePanel;
-    private final InspectorPanel inspectorPanel;
-    private final AssetsPanel assetsPanel;
-    private final EditorShortcuts shortcuts;
-    private final Selection selection;
+    private static final String ERROR_POPUP = "Project error";
+    private static final String WELCOME_POPUP = "Welcome to Folio";
+
+    private final NativeFileDialog fileDialog = new NativeFileDialog();
+    private final NewProjectDialog newProjectDialog = new NewProjectDialog(fileDialog, this::createProject);
+    private final LastProject lastProject = new LastProject();
+    private ProjectSession session;
+    private String error;
 
     Editor() {
-        Project project = TestProject.load();
-        assetLibrary = new AssetLibrary(project);
-        assetLibrary.loadAll();
-
-        CommandStack commandStack = new CommandStack();
-        Selection selection = new Selection();
-        BoxSelect boxSelect = new BoxSelect();
-        ToolState toolState = new ToolState();
-
-        SpriteGeometry spriteGeometry = new SpriteGeometry(assetLibrary, project.getPixelsPerMeter());
-        SpritePlacer spritePlacer = new SpritePlacer(commandStack);
-        ToolController tools = createTools(commandStack, selection, boxSelect, toolState, spriteGeometry, spritePlacer);
-
-        SceneCamera camera = new SceneCamera(project.getPixelsPerMeter());
-        SceneViewport viewport = new SceneViewport(camera);
-        sceneRenderer = new SceneRenderer(camera, assetLibrary, spriteGeometry);
-
-        scenePanel = new ScenePanel(TestProject.createRoom(), sceneRenderer, viewport,
-            new SceneOverlay(viewport, spriteGeometry, selection, boxSelect, toolState),
-            new SceneInput(viewport, tools, spritePlacer));
-        this.selection = selection;
-        inspectorPanel = new InspectorPanel(selection, new SpriteInspector(commandStack));
-        assetsPanel = AssetsPanel.create(project, assetLibrary, commandStack, toolState);
-        shortcuts = new EditorShortcuts(commandStack, tools, toolState);
+        reopenLastProject();
     }
 
-    /** Add a tool here, and to the {@link Tool} enum, to make it available. */
-    private static ToolController createTools(CommandStack commandStack, Selection selection, BoxSelect boxSelect,
-                                              ToolState toolState, SpriteGeometry spriteGeometry,
-                                              SpritePlacer spritePlacer) {
-        Map<Tool, SceneTool> tools = new EnumMap<>(Tool.class);
-        tools.put(Tool.SELECT, new SelectTool(new SpritePicker(spriteGeometry), selection,
-            new SpriteDrag(commandStack), boxSelect));
-        tools.put(Tool.PAINT, new PaintTool(toolState, spritePlacer));
-        return new ToolController(toolState, tools);
-    }
+    /** Picks up where the last run left off. If the project is gone, the welcome popup shows as usual. */
+    private void reopenLastProject() {
+        Path folder = lastProject.find();
+        if (folder == null) return;
 
-    void draw() {
-        scenePanel.draw();
-        inspectorPanel.draw();
-        assetsPanel.draw();
-        deselectWhenClickedOutsideSceneAndInspector();
-        shortcuts.handle();
-    }
-
-    /** The inspector edits the selection, so it has to keep it. The scene handles its own clicks. */
-    private void deselectWhenClickedOutsideSceneAndInspector() {
-        boolean clicked = ImGui.isMouseClicked(ImGuiMouseButton.Left) || ImGui.isMouseClicked(ImGuiMouseButton.Right);
-        if (clicked && !scenePanel.isHovered() && !inspectorPanel.isHovered()) {
-            selection.clear();
+        try {
+            show(ProjectStorage.open(folder));
+        } catch (IOException e) {
+            lastProject.clear();
         }
     }
 
+    void draw() {
+        drawMainMenu();
+        if (session != null) {
+            session.draw();
+        }
+        newProjectDialog.draw();
+        drawErrorPopup();
+        if (session == null && error == null && !newProjectDialog.isOpen()) {
+            drawWelcomePopup();
+        }
+    }
+
+    private void drawMainMenu() {
+        if (!ImGui.beginMainMenuBar()) return;
+
+        if (ImGui.beginMenu("File")) {
+            boolean enabled = !fileDialog.isOpen();
+            if (ImGui.menuItem("New Project...", "", false, enabled)) {
+                newProjectDialog.open();
+            }
+            if (ImGui.menuItem("Open Project...", "", false, enabled)) {
+                chooseProjectToOpen();
+            }
+            ImGui.endMenu();
+        }
+        ImGui.endMainMenuBar();
+    }
+
+    /** Shown instead of a blank editor while no project is open. */
+    private void drawWelcomePopup() {
+        if (!ImGui.isPopupOpen(WELCOME_POPUP)) {
+            ImGui.openPopup(WELCOME_POPUP);
+        }
+        if (!ImGui.beginPopupModal(WELCOME_POPUP, ImGuiWindowFlags.AlwaysAutoResize)) return;
+
+        ImGui.text("Create a new project or open an existing one.");
+        ImGui.spacing();
+
+        ImGui.beginDisabled(fileDialog.isOpen());
+        if (ImGui.button("New Project...")) {
+            ImGui.closeCurrentPopup();
+            newProjectDialog.open();
+        }
+        ImGui.sameLine();
+        if (ImGui.button("Open Project...")) {
+            chooseProjectToOpen();
+        }
+        ImGui.endDisabled();
+        ImGui.endPopup();
+    }
+
+    private void chooseProjectToOpen() {
+        fileDialog.chooseFolder("Open a Folio project folder", this::openProject);
+    }
+
+    private void drawErrorPopup() {
+        if (error != null) {
+            ImGui.openPopup(ERROR_POPUP);
+        }
+        if (ImGui.beginPopupModal(ERROR_POPUP, ImGuiWindowFlags.AlwaysAutoResize)) {
+            ImGui.text(error == null ? "" : error);
+            if (ImGui.button("OK")) {
+                error = null;
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.endPopup();
+        }
+    }
+
+    private void createProject(Path parentFolder, String name, float pixelsPerMeter) throws IOException {
+        show(ProjectStorage.create(parentFolder, name, pixelsPerMeter));
+    }
+
+    private void openProject(Path folder) {
+        try {
+            show(ProjectStorage.open(folder));
+        } catch (IOException e) {
+            error = e.getMessage();
+        }
+    }
+
+    private void show(Project project) {
+        if (session != null) session.dispose();
+        session = new ProjectSession(project);
+        lastProject.save(project.getRootFolder());
+    }
+
     void filesDropped(List<Path> files) {
-        assetsPanel.filesDropped(files);
+        if (session != null) session.filesDropped(files);
     }
 
     @Override
     public void dispose() {
-        sceneRenderer.dispose();
-        assetLibrary.dispose();
+        if (session != null) session.dispose();
     }
 }
