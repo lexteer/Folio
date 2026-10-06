@@ -10,7 +10,6 @@ import lex.folio.model.Room;
 import lex.folio.model.SpriteLayer;
 import lex.folio.scene.BoxSelect;
 import lex.folio.scene.Selection;
-import lex.folio.scene.camera.SceneCamera;
 import lex.folio.scene.render.SceneRenderer;
 import lex.folio.scene.sprite.SpriteDrag;
 import lex.folio.scene.sprite.SpriteGeometry;
@@ -58,13 +57,13 @@ final class ProjectSession implements Disposable {
         SpritePlacer spritePlacer = new SpritePlacer(commandStack);
         ToolController tools = createTools(commandStack, selection, boxSelect, toolState, spriteGeometry, spritePlacer);
 
-        SceneCamera camera = new SceneCamera(project.getPixelsPerMeter());
-        SceneViewport viewport = new SceneViewport(camera);
-        sceneRenderer = new SceneRenderer(camera, assetLibrary, spriteGeometry);
+        SceneViewport viewport = new SceneViewport();
+        sceneRenderer = new SceneRenderer(assetLibrary, spriteGeometry);
 
-        scenePanel = new ScenePanel(createRoom(), sceneRenderer, viewport,
+        scenePanel = new ScenePanel(List.of(createRoom("main")), project.getPixelsPerMeter(),
+            ProjectSession::createRoom, sceneRenderer, viewport,
             new SceneOverlay(viewport, spriteGeometry, selection, boxSelect, toolState),
-            new SceneInput(viewport, tools, spritePlacer));
+            new SceneInput(viewport, tools, spritePlacer), selection);
         this.selection = selection;
         inspectorPanel = new InspectorPanel(selection, new SpriteInspector(commandStack));
         assetsPanel = AssetsPanel.create(project, assetLibrary, commandStack, toolState);
@@ -72,8 +71,8 @@ final class ProjectSession implements Disposable {
     }
 
     /** Rooms are not saved yet, so every session starts with one empty room. */
-    private static Room createRoom() {
-        Room room = new Room("main");
+    private static Room createRoom(String name) {
+        Room room = new Room(name);
         room.addLayer(new SpriteLayer(room.createId(), "Art"));
         return room;
     }
@@ -111,6 +110,7 @@ final class ProjectSession implements Disposable {
 
     @Override
     public void dispose() {
+        scenePanel.dispose();
         sceneRenderer.dispose();
         assetLibrary.dispose();
     }

@@ -15,21 +15,19 @@ public class GridRenderer {
     private static final float MIN_GRID_CELL_PIXELS = 8f;
 
     private final ShapeRenderer shapeRenderer;
-    private final SceneCamera camera;
 
-    public GridRenderer(ShapeRenderer shapeRenderer, SceneCamera camera) {
+    public GridRenderer(ShapeRenderer shapeRenderer) {
         this.shapeRenderer = shapeRenderer;
-        this.camera = camera;
     }
 
     /** Expects the shape renderer's projection matrix to already be set. */
-    public void render() {
-        drawGrid();
-        drawAxes();
+    public void render(SceneCamera camera) {
+        drawGrid(camera);
+        drawAxes(camera);
     }
 
-    private void drawGrid() {
-        if (!isGridCellLargeEnough()) {
+    private void drawGrid(SceneCamera camera) {
+        if (!isGridCellLargeEnough(camera)) {
             return;
         }
         Rectangle visible = camera.getVisibleArea();
@@ -41,7 +39,7 @@ public class GridRenderer {
         shapeRenderer.end();
     }
 
-    private boolean isGridCellLargeEnough() {
+    private boolean isGridCellLargeEnough(SceneCamera camera) {
         float cellSizeInPixels = GRID_CELL_SIZE / camera.getMetersPerScreenPixel();
         return cellSizeInPixels >= MIN_GRID_CELL_PIXELS;
     }
@@ -68,7 +66,7 @@ public class GridRenderer {
         }
     }
 
-    private void drawAxes() {
+    private void drawAxes(SceneCamera camera) {
         Rectangle visible = camera.getVisibleArea();
 
         shapeRenderer.begin(ShapeRenderer.ShapeType.Line);

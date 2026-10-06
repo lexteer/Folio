@@ -6,12 +6,13 @@ import lex.folio.scene.camera.SceneCamera;
 
 /** Where the scene image sits on screen, and conversions between screen, image and world positions. */
 public class SceneViewport {
-    private final SceneCamera camera;
+    private SceneCamera camera;
     private float imageX;
     private float imageY;
     private float width;
 
-    public SceneViewport(SceneCamera camera) {
+    /** The viewport follows whichever room's camera is being shown. */
+    public void setCamera(SceneCamera camera) {
         this.camera = camera;
     }
 
