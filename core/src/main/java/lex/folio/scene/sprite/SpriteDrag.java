@@ -1,53 +1,67 @@
 package lex.folio.scene.sprite;
 
 import com.badlogic.gdx.math.Vector2;
+import lex.folio.command.Command;
+import lex.folio.command.CommandGroup;
 import lex.folio.command.CommandStack;
 import lex.folio.command.SetValueCommand;
 import lex.folio.model.Sprite;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/** Moves one or more sprites together with the mouse. A finished drag is a single undo step. */
 public class SpriteDrag {
     private final CommandStack commandStack;
-    private final Vector2 startPosition = new Vector2();
-    private final Vector2 grabOffset = new Vector2();
-    private Sprite sprite;
+    private final Map<Sprite, Vector2> startPositions = new LinkedHashMap<>();
+    private float grabX;
+    private float grabY;
 
     public SpriteDrag(CommandStack commandStack) {
         this.commandStack = commandStack;
     }
 
     public boolean isActive() {
-        return sprite != null;
+        return !startPositions.isEmpty();
     }
 
-    public void start(Sprite sprite, float worldX, float worldY) {
-        this.sprite = sprite;
-        startPosition.set(sprite.getX(), sprite.getY());
-        grabOffset.set(worldX - sprite.getX(), worldY - sprite.getY());
+    public void start(Collection<Sprite> sprites, float worldX, float worldY) {
+        startPositions.clear();
+        for (Sprite sprite : sprites) {
+            startPositions.put(sprite, new Vector2(sprite.getX(), sprite.getY()));
+        }
+        grabX = worldX;
+        grabY = worldY;
     }
 
     public void moveTo(float worldX, float worldY) {
-        if (!isActive()) return;
-        sprite.setPosition(worldX - grabOffset.x, worldY - grabOffset.y);
+        float deltaX = worldX - grabX;
+        float deltaY = worldY - grabY;
+        startPositions.forEach((sprite, start) -> sprite.setPosition(start.x + deltaX, start.y + deltaY));
     }
 
-    public void finish() {
-        if (!isActive()) return;
+    /** Returns whether the sprites ended up somewhere else than they started. */
+    public boolean finish() {
+        List<Command> moves = new ArrayList<>();
+        startPositions.forEach((sprite, start) -> {
+            Vector2 end = new Vector2(sprite.getX(), sprite.getY());
+            if (!end.equals(start)) {
+                moves.add(new SetValueCommand<>(v -> sprite.setPosition(v.x, v.y), start, end));
+            }
+        });
+        startPositions.clear();
 
-        Vector2 endPosition = new Vector2(sprite.getX(), sprite.getY());
-        if (!endPosition.equals(startPosition)) {
-            commitMove(sprite, startPosition.cpy(), endPosition);
-        }
-        sprite = null;
-    }
+        if (moves.isEmpty()) return false;
 
-    private void commitMove(Sprite movedSprite, Vector2 from, Vector2 to) {
-        commandStack.execute(new SetValueCommand<>(v -> movedSprite.setPosition(v.x, v.y), from, to));
+        commandStack.execute(new CommandGroup(moves));
+        return true;
     }
 
     public void cancel() {
-        if (!isActive()) return;
-
-        sprite.setPosition(startPosition.x, startPosition.y);
-        sprite = null;
+        startPositions.forEach((sprite, start) -> sprite.setPosition(start.x, start.y));
+        startPositions.clear();
     }
 }

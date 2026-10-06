@@ -1,18 +1,29 @@
 package lex.folio.ui.scene;
 
+import com.badlogic.gdx.math.Vector2;
+import imgui.ImGui;
 import lex.folio.model.RoomObject;
 import lex.folio.model.Sprite;
+import lex.folio.scene.BoxSelect;
 import lex.folio.scene.Selection;
 import lex.folio.ui.common.UiColors;
 
-/** Outlines the selected objects. */
+/** Outlines the selected objects, and the box being dragged out to select more. */
 class SelectionOverlay {
+    private static final int BOX_FILL_COLOR = UiColors.withAlpha(UiColors.ACCENT, 0.15f);
+    private static final int BOX_BORDER_COLOR = UiColors.withAlpha(UiColors.ACCENT, 0.8f);
+
+    private final SceneViewport viewport;
     private final SpriteOutlineDrawer outlines;
     private final Selection selection;
+    private final BoxSelect boxSelect;
 
-    SelectionOverlay(SpriteOutlineDrawer outlines, Selection selection) {
+    SelectionOverlay(SceneViewport viewport, SpriteOutlineDrawer outlines, Selection selection,
+                     BoxSelect boxSelect) {
+        this.viewport = viewport;
         this.outlines = outlines;
         this.selection = selection;
+        this.boxSelect = boxSelect;
     }
 
     void draw() {
@@ -21,5 +32,19 @@ class SelectionOverlay {
                 outlines.drawOutline(sprite, UiColors.ACCENT);
             }
         }
+        drawBox();
+    }
+
+    private void drawBox() {
+        if (!boxSelect.isActive()) return;
+
+        Vector2 a = viewport.worldToScreen(boxSelect.getMinX(), boxSelect.getMinY());
+        Vector2 b = viewport.worldToScreen(boxSelect.getMaxX(), boxSelect.getMaxY());
+        float minX = Math.min(a.x, b.x);
+        float minY = Math.min(a.y, b.y);
+        float maxX = Math.max(a.x, b.x);
+        float maxY = Math.max(a.y, b.y);
+        ImGui.getWindowDrawList().addRectFilled(minX, minY, maxX, maxY, BOX_FILL_COLOR);
+        ImGui.getWindowDrawList().addRect(minX, minY, maxX, maxY, BOX_BORDER_COLOR);
     }
 }

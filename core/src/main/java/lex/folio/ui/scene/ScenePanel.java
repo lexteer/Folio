@@ -1,6 +1,7 @@
 package lex.folio.ui.scene;
 
 import imgui.ImGui;
+import imgui.flag.ImGuiHoveredFlags;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
 import lex.folio.model.Room;
@@ -16,6 +17,7 @@ public class ScenePanel {
     private final SceneViewport viewport;
     private final SceneOverlay overlay;
     private final SceneInput input;
+    private boolean hovered;
 
     public ScenePanel(Room room, SceneRenderer renderer, SceneViewport viewport, SceneOverlay overlay,
                       SceneInput input) {
@@ -30,11 +32,17 @@ public class ScenePanel {
         ImGui.pushStyleVar(ImGuiStyleVar.WindowPadding, 0, 0);
         boolean visible = ImGui.begin(TITLE, WINDOW_FLAGS);
         ImGui.popStyleVar();
+        hovered = ImGui.isWindowHovered(ImGuiHoveredFlags.RootAndChildWindows);
 
         if (visible) {
             drawContent();
         }
         ImGui.end();
+    }
+
+    /** Whether the mouse was over the window, including its overlay, when it was last drawn. */
+    public boolean isHovered() {
+        return hovered;
     }
 
     private void drawContent() {

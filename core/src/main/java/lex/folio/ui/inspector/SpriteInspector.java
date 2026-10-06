@@ -1,15 +1,23 @@
 package lex.folio.ui.inspector;
 
 import com.badlogic.gdx.math.Vector2;
+import lex.folio.command.Command;
+import lex.folio.command.CommandGroup;
 import lex.folio.command.CommandStack;
 import lex.folio.command.SetValueCommand;
 import lex.folio.model.Sprite;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
-/** Edits the properties of a single sprite. Every committed edit is an undoable command. */
+/**
+ * Edits the properties of the selected sprites. The first one's values are shown, and an edit is applied to all of
+ * them as one undoable command.
+ */
 public class SpriteInspector {
     private final CommandStack commandStack;
     private final PropertyRow row = new PropertyRow();
@@ -18,54 +26,83 @@ public class SpriteInspector {
         this.commandStack = commandStack;
     }
 
-    public void draw(Sprite sprite) {
-        drawPosition(sprite);
-        drawRotation(sprite);
-        drawScale(sprite);
-        drawFlip(sprite);
+    public void draw(List<Sprite> sprites) {
+        List<Sprite> targets = List.copyOf(sprites);
+        Sprite shown = targets.getFirst();
+        drawPosition(targets, shown);
+        drawRotation(targets, shown);
+        drawScale(targets, shown);
+        drawFlip(targets, shown);
     }
 
-    private void drawPosition(Sprite sprite) {
+    private void drawPosition(List<Sprite> targets, Sprite shown) {
         row.begin("Position");
-        row.drawAxisField("X", sprite.getX(), x ->
-            commitPair(sprite::setPosition, sprite.getX(), sprite.getY(), x, sprite.getY()));
+        row.drawAxisField("X", shown.getX(), x ->
+            commit(targets, SpriteInspector::getPosition, SpriteInspector::setPosition,
+                v -> new Vector2(x, v.y)));
         row.sameLine();
-        row.drawAxisField("Y", sprite.getY(), y ->
-            commitPair(sprite::setPosition, sprite.getX(), sprite.getY(), sprite.getX(), y));
+        row.drawAxisField("Y", shown.getY(), y ->
+            commit(targets, SpriteInspector::getPosition, SpriteInspector::setPosition,
+                v -> new Vector2(v.x, y)));
         row.end();
     }
 
-    private void drawRotation(Sprite sprite) {
+    private void drawRotation(List<Sprite> targets, Sprite shown) {
         row.begin("Rotation");
-        row.drawWideField("rotation", sprite.getRotationDegrees(), degrees ->
-            commit(sprite::setRotationDegrees, sprite.getRotationDegrees(), degrees));
+        row.drawWideField("rotation", shown.getRotationDegrees(), degrees ->
+            commit(targets, Sprite::getRotationDegrees, Sprite::setRotationDegrees, old -> degrees));
         row.end();
     }
 
-    private void drawScale(Sprite sprite) {
+    private void drawScale(List<Sprite> targets, Sprite shown) {
         row.begin("Scale");
-        row.drawAxisField("X", sprite.getScaleX(), x ->
-            commitPair(sprite::setScale, sprite.getScaleX(), sprite.getScaleY(), x, sprite.getScaleY()));
+        row.drawAxisField("X", shown.getScaleX(), x ->
+            commit(targets, SpriteInspector::getScale, SpriteInspector::setScale, v -> new Vector2(x, v.y)));
         row.sameLine();
-        row.drawAxisField("Y", sprite.getScaleY(), y ->
-            commitPair(sprite::setScale, sprite.getScaleX(), sprite.getScaleY(), sprite.getScaleX(), y));
+        row.drawAxisField("Y", shown.getScaleY(), y ->
+            commit(targets, SpriteInspector::getScale, SpriteInspector::setScale, v -> new Vector2(v.x, y)));
         row.end();
     }
 
-    private void drawFlip(Sprite sprite) {
+    private void drawFlip(List<Sprite> targets, Sprite shown) {
         row.begin("Flip");
-        row.drawAxisCheckbox("X", sprite.isFlipX(), flip -> commit(sprite::setFlipX, sprite.isFlipX(), flip));
+        row.drawAxisCheckbox("X", shown.isFlipX(), flip ->
+            commit(targets, Sprite::isFlipX, Sprite::setFlipX, old -> flip));
         row.sameLine();
-        row.drawAxisCheckbox("Y", sprite.isFlipY(), flip -> commit(sprite::setFlipY, sprite.isFlipY(), flip));
+        row.drawAxisCheckbox("Y", shown.isFlipY(), flip ->
+            commit(targets, Sprite::isFlipY, Sprite::setFlipY, old -> flip));
         row.end();
     }
 
-    private void commitPair(BiConsumer<Float, Float> setter, float oldX, float oldY, float newX, float newY) {
-        commit(v -> setter.accept(v.x, v.y), new Vector2(oldX, oldY), new Vector2(newX, newY));
+    private static Vector2 getPosition(Sprite sprite) {
+        return new Vector2(sprite.getX(), sprite.getY());
     }
 
-    private <T> void commit(Consumer<T> setter, T oldValue, T newValue) {
-        if (Objects.equals(oldValue, newValue)) return;
-        commandStack.execute(new SetValueCommand<>(setter, oldValue, newValue));
+    private static void setPosition(Sprite sprite, Vector2 position) {
+        sprite.setPosition(position.x, position.y);
+    }
+
+    private static Vector2 getScale(Sprite sprite) {
+        return new Vector2(sprite.getScaleX(), sprite.getScaleY());
+    }
+
+    private static void setScale(Sprite sprite, Vector2 scale) {
+        sprite.setScale(scale.x, scale.y);
+    }
+
+    /** Changes the property of every sprite, each from its own current value, as a single undo step. */
+    private <T> void commit(List<Sprite> sprites, Function<Sprite, T> read, BiConsumer<Sprite, T> write,
+                            UnaryOperator<T> change) {
+        List<Command> edits = new ArrayList<>();
+        for (Sprite sprite : sprites) {
+            T oldValue = read.apply(sprite);
+            T newValue = change.apply(oldValue);
+            if (!Objects.equals(oldValue, newValue)) {
+                edits.add(new SetValueCommand<>(v -> write.accept(sprite, v), oldValue, newValue));
+            }
+        }
+        if (edits.isEmpty()) return;
+
+        commandStack.execute(new CommandGroup(edits));
     }
 }

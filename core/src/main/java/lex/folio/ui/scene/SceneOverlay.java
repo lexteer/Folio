@@ -1,6 +1,7 @@
 package lex.folio.ui.scene;
 
 import lex.folio.model.Room;
+import lex.folio.scene.BoxSelect;
 import lex.folio.scene.Selection;
 import lex.folio.scene.sprite.SpriteGeometry;
 import lex.folio.scene.tool.ToolState;
@@ -11,10 +12,11 @@ public class SceneOverlay {
     private final SelectionOverlay selectionOutlines;
     private final SceneToolbar toolbar;
 
-    public SceneOverlay(SceneViewport viewport, SpriteGeometry geometry, Selection selection, ToolState toolState) {
+    public SceneOverlay(SceneViewport viewport, SpriteGeometry geometry, Selection selection,
+                        BoxSelect boxSelect, ToolState toolState) {
         SpriteOutlineDrawer outlines = new SpriteOutlineDrawer(viewport, geometry);
         this.placeholders = new PlaceholderOverlay(outlines, geometry);
-        this.selectionOutlines = new SelectionOverlay(outlines, selection);
+        this.selectionOutlines = new SelectionOverlay(viewport, outlines, selection, boxSelect);
         this.toolbar = new SceneToolbar(viewport, toolState);
     }
 
