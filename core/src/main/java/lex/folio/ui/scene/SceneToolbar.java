@@ -86,6 +86,6 @@ final class SceneToolbar {
         ImVec2 box = ImGui.calcTextSize(icon);
         float x = Math.round((ImGui.getItemRectMinX() + ImGui.getItemRectMaxX() - box.x) / 2f);
         float y = Math.round((ImGui.getItemRectMinY() + ImGui.getItemRectMaxY() - box.y) / 2f + ICON_DROP);
-        ImGui.getWindowDrawList().addText(ImGui.getFont(), Icons.FONT_SIZE, x, y, ImGui.getColorU32(ImGuiCol.Text), icon);
+        ImGui.getWindowDrawList().addText(ImGui.getFont(), Math.round(Icons.FONT_SIZE), x, y, ImGui.getColorU32(ImGuiCol.Text), icon);
     }
 }
