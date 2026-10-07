@@ -2,13 +2,13 @@ package lex.folio.ui.scene;
 
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiStyleVar;
+import lex.folio.ui.common.Icons;
 import lex.folio.ui.common.UiColors;
 import lex.folio.scene.tool.Tool;
 import lex.folio.scene.tool.ToolState;
 
 final class SceneToolbar {
-    private static final String SELECT_LABEL = "Select";
-    private static final String PAINT_LABEL = "Paint";
     private static final float TOP_MARGIN_IN_FONT_SIZES = 0.5f;
     private static final float PADDING = 4f;
     private static final float ROUNDING = 6f;
@@ -33,9 +33,9 @@ final class SceneToolbar {
         ImGui.getWindowDrawList().addRectFilled(minX, minY, maxX, maxY, BACKGROUND_COLOR, ROUNDING);
 
         ImGui.setCursorScreenPos(minX + PADDING, minY + PADDING);
-        drawToolButton(SELECT_LABEL, Tool.SELECT);
+        drawToolButton(Icons.SELECT, "Select", Tool.SELECT);
         ImGui.sameLine();
-        drawToolButton(PAINT_LABEL, Tool.PAINT);
+        drawToolButton(Icons.PAINT, "Paint", Tool.PAINT);
     }
 
     boolean isHovered() {
@@ -52,21 +52,23 @@ final class SceneToolbar {
         maxY = minY + height;
     }
 
-    private float getButtonsWidth() {
-        return getButtonWidth(SELECT_LABEL) + ImGui.getStyle().getItemSpacingX() + getButtonWidth(PAINT_LABEL);
+    /** The buttons are square, one frame high. */
+    private static float getButtonsWidth() {
+        return 2f * ImGui.getFrameHeight() + ImGui.getStyle().getItemSpacingX();
     }
 
-    private static float getButtonWidth(String label) {
-        return ImGui.calcTextSizeX(label) + 2f * ImGui.getStyle().getFramePaddingX();
-    }
-
-    private void drawToolButton(String label, Tool tool) {
+    private void drawToolButton(String icon, String name, Tool tool) {
         boolean active = toolState.getTool() == tool;
         if (active) ImGui.pushStyleColor(ImGuiCol.Button, ImGui.getColorU32(ImGuiCol.ButtonActive));
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, ROUNDING);
 
-        if (ImGui.button(label)) {
+        float size = ImGui.getFrameHeight();
+        if (ImGui.button(icon + "##" + name, size, size)) {
             toolState.setTool(tool);
         }
+        if (ImGui.isItemHovered()) ImGui.setTooltip(name);
+
+        ImGui.popStyleVar();
         if (active) ImGui.popStyleColor();
     }
 }

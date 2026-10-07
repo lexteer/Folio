@@ -6,6 +6,8 @@ package lex.folio.ui.common;
  */
 public final class Icons {
     public static final String ADD = "";
+    public static final String SELECT = "\uE55D";
+    public static final String PAINT = "\uE3AE";
     public static final String CLOSE = "";
 
     /** The font file, relative to the assets folder. */
