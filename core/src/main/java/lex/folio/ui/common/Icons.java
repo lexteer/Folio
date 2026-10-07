@@ -6,6 +6,7 @@ package lex.folio.ui.common;
  */
 public final class Icons {
     public static final String ADD = "";
+    public static final String SELECT = "\uE569";
     public static final String PAINT = "\uE3AE";
     public static final String CLOSE = "";
 
