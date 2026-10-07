@@ -74,7 +74,7 @@ final class SceneToolbar {
     }
 
     private static float getButtonsWidth() {
-        return BUTTON_COUNT * getButtonSize() + ImGui.getStyle().getItemSpacingX();
+        return BUTTON_COUNT * getButtonSize() + (BUTTON_COUNT - 1) * ImGui.getStyle().getItemSpacingX();
     }
 
     private void drawToolButton(String icon, String name, Tool tool) {
