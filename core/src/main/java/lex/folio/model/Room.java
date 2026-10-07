@@ -99,6 +99,20 @@ public class Room {
         return replaced;
     }
 
+    /** Gives the shapes that have the tag another one. Returns whether there were any. */
+    public boolean replaceTag(String oldName, String newName) {
+        boolean replaced = false;
+        for (CollisionLayer layer : getCollisionLayers()) {
+            for (CollisionShape shape : layer.getItems()) {
+                if (shape.getTag().equalsIgnoreCase(oldName)) {
+                    shape.setTag(newName);
+                    replaced = true;
+                }
+            }
+        }
+        return replaced;
+    }
+
     public void addLayer(Layer<?> layer) {
         layers.add(Objects.requireNonNull(layer, "layer"));
     }

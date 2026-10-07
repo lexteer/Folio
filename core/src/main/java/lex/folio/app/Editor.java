@@ -71,6 +71,12 @@ final class Editor implements Disposable {
             }
             ImGui.endMenu();
         }
+        if (ImGui.beginMenu("Edit")) {
+            if (ImGui.menuItem("Collision Tags...", "", false, session != null)) {
+                session.openCollisionTags();
+            }
+            ImGui.endMenu();
+        }
         ImGui.endMainMenuBar();
     }
 

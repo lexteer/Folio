@@ -40,6 +40,7 @@ import lex.folio.ui.inspector.InspectorPanel;
 import lex.folio.ui.inspector.SpriteInspector;
 import lex.folio.ui.layers.LayersPanel;
 import lex.folio.ui.scene.SceneInput;
+import lex.folio.ui.tags.CollisionTagsDialog;
 import lex.folio.ui.scene.SceneOverlay;
 import lex.folio.ui.scene.ScenePanel;
 import lex.folio.ui.scene.SceneViewport;
@@ -61,6 +62,7 @@ final class ProjectSession implements Disposable {
     private final ScenePanel scenePanel;
     private final InspectorPanel inspectorPanel;
     private final LayersPanel layersPanel;
+    private final CollisionTagsDialog tagsDialog;
     private final AssetsPanel assetsPanel;
     private final EditorShortcuts shortcuts;
     private final Selection selection;
@@ -113,6 +115,8 @@ final class ProjectSession implements Disposable {
         this.selection = selection;
         this.errorSink = errorSink;
         project.getCollisionTags().setChangeListener(this::collisionTagsChanged);
+        project.getCollisionTags().setReplacedListener(this::collisionTagReplaced);
+        tagsDialog = new CollisionTagsDialog(project.getCollisionTags());
         inspectorPanel = new InspectorPanel(selection, new SpriteInspector(commandStack),
             new CollisionShapeInspector(commandStack, project.getCollisionTags()));
         layersPanel = new LayersPanel(scenePanel::getActiveRoom, activeLayers, commandStack);
@@ -152,6 +156,20 @@ final class ProjectSession implements Disposable {
             Layer<?> layer = room.findLayerOf(object);
             return layer != null && layer.isEditable();
         }).toList());
+    }
+
+    /** Shapes refer to tags by name, so the open rooms and the saved ones follow a renamed or removed tag. */
+    private void collisionTagReplaced(String oldName, String newName) {
+        scenePanel.tagReplaced(oldName, newName);
+        try {
+            roomStorage.replaceTag(oldName, newName);
+        } catch (IOException e) {
+            errorSink.accept("Could not update the saved rooms to the changed tag: " + e.getMessage());
+        }
+    }
+
+    void openCollisionTags() {
+        tagsDialog.open();
     }
 
     private void collisionTagsChanged() {
@@ -217,6 +235,7 @@ final class ProjectSession implements Disposable {
         layersPanel.draw();
         inspectorPanel.draw();
         assetsPanel.draw();
+        tagsDialog.draw();
         deselectWhenClickedOutsideSceneAndInspector();
         shortcuts.handle();
         rememberOpenRooms();

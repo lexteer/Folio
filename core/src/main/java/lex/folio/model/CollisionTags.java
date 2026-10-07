@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.BiConsumer;
 
 /** The tags the user can give collision shapes. They belong to the project, so every room can use them. */
 public class CollisionTags {
@@ -20,6 +21,8 @@ public class CollisionTags {
     private final List<CollisionTag> readOnlyTags = Collections.unmodifiableList(tags);
     private Runnable changeListener = () -> {
     };
+    private BiConsumer<String, String> replacedListener = (oldName, newName) -> {
+    };
 
     public CollisionTags() {
         tags.add(new CollisionTag(DEFAULT_NAME, DEFAULT_RGB));
@@ -28,6 +31,11 @@ public class CollisionTags {
     /** Called after a tag was added or removed. */
     public void setChangeListener(Runnable changeListener) {
         this.changeListener = Objects.requireNonNull(changeListener, "changeListener");
+    }
+
+    /** Called with the old and the new name of the tag that shapes have to be given instead, after a rename or removal. */
+    public void setReplacedListener(BiConsumer<String, String> replacedListener) {
+        this.replacedListener = Objects.requireNonNull(replacedListener, "replacedListener");
     }
 
     public List<CollisionTag> getAll() {
@@ -48,13 +56,19 @@ public class CollisionTags {
 
     /** Why the name cannot be used for a new tag, or null if it can. */
     public String nameProblem(String name) {
+        return nameProblem(name, null);
+    }
+
+    /** Like {@link #nameProblem(String)}, but the tag called {@code ignoring} does not count as using its name. */
+    public String nameProblem(String name, String ignoring) {
         if (name.isBlank()) return "A tag needs a name.";
         if (!name.equals(name.strip())) return "A tag name cannot start or end with a space.";
         if (name.length() > MAX_NAME_LENGTH) return "A tag name can have at most " + MAX_NAME_LENGTH + " characters.";
         for (char forbidden : FORBIDDEN_IN_NAMES.toCharArray()) {
             if (name.indexOf(forbidden) >= 0) return "A tag name cannot contain " + forbidden;
         }
-        if (find(name) != null) return "There is already a tag called \"" + name + "\".";
+        CollisionTag used = find(name);
+        if (used != null && !used.name().equalsIgnoreCase(ignoring)) return "There is already a tag called \"" + name + "\".";
         return null;
     }
 
@@ -71,6 +85,29 @@ public class CollisionTags {
         changeListener.run();
     }
 
+    public boolean canRename(String name) {
+        return canRemove(name);
+    }
+
+    /** Gives the tag a new name. The shapes that use it are pointed at the new name. */
+    public void rename(String oldName, String newName) {
+        CollisionTag tag = find(oldName);
+        if (tag == null || !canRename(oldName) || nameProblem(newName, oldName) != null) return;
+        if (tag.name().equals(newName)) return;
+
+        tags.set(tags.indexOf(tag), new CollisionTag(newName, tag.rgb()));
+        changeListener.run();
+        replacedListener.accept(tag.name(), newName);
+    }
+
+    public void setColor(String name, int rgb) {
+        CollisionTag tag = find(name);
+        if (tag == null || tag.rgb() == rgb) return;
+
+        tags.set(tags.indexOf(tag), new CollisionTag(tag.name(), rgb));
+        changeListener.run();
+    }
+
     public boolean canRemove(String name) {
         return !name.equalsIgnoreCase(DEFAULT_NAME) && find(name) != null;
     }
@@ -78,8 +115,10 @@ public class CollisionTags {
     public void remove(String name) {
         if (!canRemove(name)) return;
 
-        tags.remove(find(name));
+        CollisionTag tag = find(name);
+        tags.remove(tag);
         changeListener.run();
+        replacedListener.accept(tag.name(), getDefault().name());
     }
 
     /** Replaces the tags with the loaded ones, keeping the default one. Does not call the change listener. */

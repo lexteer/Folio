@@ -118,6 +118,14 @@ public class ScenePanel {
         roomsChanged();
     }
 
+    /** Points the shapes of the open rooms that have the tag at another tag. */
+    public void tagReplaced(String oldName, String newName) {
+        for (RoomTab tab : tabs) {
+            tab.getRoom().replaceTag(oldName, newName);
+        }
+        roomsChanged();
+    }
+
     /** The room whose tab is shown, or null if no tab is open. */
     public Room getActiveRoom() {
         return activeTab == null ? null : activeTab.getRoom();

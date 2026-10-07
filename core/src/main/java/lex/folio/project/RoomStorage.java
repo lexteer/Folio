@@ -52,6 +52,20 @@ public final class RoomStorage {
         }
     }
 
+    /** Gives the shapes of every saved room that have the tag another one, and saves those rooms again. */
+    public void replaceTag(String oldName, String newName) throws IOException {
+        if (!Files.isDirectory(folder)) return;
+
+        List<Path> files;
+        try (Stream<Path> children = Files.list(folder)) {
+            files = children.filter(file -> file.getFileName().toString().endsWith(EXTENSION)).sorted().toList();
+        }
+        for (Path file : files) {
+            Room room = load(file);
+            if (room.replaceTag(oldName, newName)) save(room, null);
+        }
+    }
+
     public Path getFolder() {
         return folder;
     }
