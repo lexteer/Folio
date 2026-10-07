@@ -81,8 +81,8 @@ public class ImGuiBackend implements Disposable {
 
         ImFontConfig config = new ImFontConfig();
         config.setMergeMode(true);
-        // The icons sit on the same baseline as the text, which puts them too high next to the small default font.
-        config.setGlyphOffset(0f, 3f);
+        // The icons sit centered a little higher than the text of the small default font, so they are nudged down.
+        config.setGlyphOffset(0f, 1f);
         fonts.addFontFromMemoryTTF(Gdx.files.internal(Icons.FONT_FILE).readBytes(), Icons.FONT_SIZE, config,
             Icons.GLYPH_RANGES);
         config.destroy();

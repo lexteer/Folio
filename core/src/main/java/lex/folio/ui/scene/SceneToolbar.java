@@ -1,17 +1,21 @@
 package lex.folio.ui.scene;
 
 import imgui.ImGui;
+import imgui.ImVec2;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiStyleVar;
+import lex.folio.ui.common.Icons;
 import lex.folio.ui.common.UiColors;
 import lex.folio.scene.tool.Tool;
 import lex.folio.scene.tool.ToolState;
 
 final class SceneToolbar {
-    private static final String SELECT_LABEL = "Select";
-    private static final String PAINT_LABEL = "Paint";
     private static final float TOP_MARGIN_IN_FONT_SIZES = 0.5f;
     private static final float PADDING = 4f;
     private static final float ROUNDING = 6f;
+    /** How much taller than a frame the buttons are, which keeps the wider icons clear of their corners. */
+    private static final float BUTTON_EXTRA = 8f;
+    /** The icons are drawn a little lower than centered text, which puts the middle of the shape in the middle. */
 
     private static final int BACKGROUND_COLOR = UiColors.pack(0.1f, 0.1f, 0.12f, 0.9f);
 
@@ -33,9 +37,9 @@ final class SceneToolbar {
         ImGui.getWindowDrawList().addRectFilled(minX, minY, maxX, maxY, BACKGROUND_COLOR, ROUNDING);
 
         ImGui.setCursorScreenPos(minX + PADDING, minY + PADDING);
-        drawToolButton(SELECT_LABEL, Tool.SELECT);
+        drawToolButton(Icons.SELECT, "Select", Tool.SELECT);
         ImGui.sameLine();
-        drawToolButton(PAINT_LABEL, Tool.PAINT);
+        drawToolButton(Icons.PAINT, "Paint", Tool.PAINT);
     }
 
     boolean isHovered() {
@@ -44,7 +48,7 @@ final class SceneToolbar {
 
     private void computeBounds() {
         float width = getButtonsWidth() + 2f * PADDING;
-        float height = ImGui.getFrameHeight() + 2f * PADDING;
+        float height = getButtonSize() + 2f * PADDING;
 
         minX = viewport.getImageX() + (viewport.getWidth() - width) / 2f;
         minY = viewport.getImageY() + ImGui.getFontSize() * TOP_MARGIN_IN_FONT_SIZES;
@@ -52,21 +56,34 @@ final class SceneToolbar {
         maxY = minY + height;
     }
 
-    private float getButtonsWidth() {
-        return getButtonWidth(SELECT_LABEL) + ImGui.getStyle().getItemSpacingX() + getButtonWidth(PAINT_LABEL);
+    private static float getButtonSize() {
+        return ImGui.getFrameHeight() + BUTTON_EXTRA;
     }
 
-    private static float getButtonWidth(String label) {
-        return ImGui.calcTextSizeX(label) + 2f * ImGui.getStyle().getFramePaddingX();
+    private static float getButtonsWidth() {
+        return 2f * getButtonSize() + ImGui.getStyle().getItemSpacingX();
     }
 
-    private void drawToolButton(String label, Tool tool) {
+    private void drawToolButton(String icon, String name, Tool tool) {
         boolean active = toolState.getTool() == tool;
         if (active) ImGui.pushStyleColor(ImGuiCol.Button, ImGui.getColorU32(ImGuiCol.ButtonActive));
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, ROUNDING);
 
-        if (ImGui.button(label)) {
+        float size = getButtonSize();
+        if (ImGui.button("##" + name, size, size)) {
             toolState.setTool(tool);
         }
+        drawIconCentered(icon);
+        if (ImGui.isItemHovered()) ImGui.setTooltip(name);
+
+        ImGui.popStyleVar();
         if (active) ImGui.popStyleColor();
+    }
+
+    private static void drawIconCentered(String icon) {
+        ImVec2 box = ImGui.calcTextSize(icon);
+        float x = Math.round((ImGui.getItemRectMinX() + ImGui.getItemRectMaxX() - box.x) / 2f);
+        float y = Math.round((ImGui.getItemRectMinY() + ImGui.getItemRectMaxY() - box.y) / 2f);
+        ImGui.getWindowDrawList().addText(ImGui.getFont(), Math.round(Icons.FONT_SIZE), x, y, ImGui.getColorU32(ImGuiCol.Text), icon);
     }
 }
