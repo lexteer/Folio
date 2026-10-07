@@ -3,7 +3,7 @@ package lex.folio.ui.tags;
 import imgui.ImGui;
 import imgui.flag.ImGuiChildFlags;
 import imgui.flag.ImGuiCol;
-import imgui.flag.ImGuiInputTextFlags;
+import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
 import lex.folio.model.CollisionTag;
@@ -113,7 +113,7 @@ public class CollisionTagsDialog {
         float buttonWidth = ImGui.getFrameHeight();
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - buttonWidth - ImGui.getStyle().getItemSpacingX());
         ImGui.beginDisabled(!editable);
-        ImGui.inputText("##name", field, ImGuiInputTextFlags.EnterReturnsTrue);
+        ImGui.inputText("##name", field);
         ImGui.endDisabled();
         if (ImGui.isItemDeactivated()) applyRename(tag, field);
 
@@ -154,8 +154,10 @@ public class CollisionTagsDialog {
 
         float addWidth = ImGui.calcTextSizeX("Add") + 2f * ImGui.getStyle().getFramePaddingX();
         ImGui.setNextItemWidth(ImGui.getContentRegionAvailX() - addWidth - ImGui.getStyle().getItemSpacingX());
-        boolean enter = ImGui.inputTextWithHint("##newName", "New tag name", newName,
-            ImGuiInputTextFlags.EnterReturnsTrue);
+        // No EnterReturnsTrue: ImGui then only hands over the text on Enter, and clicking Add would find it empty.
+        ImGui.inputTextWithHint("##newName", "New tag name", newName);
+        boolean enter = ImGui.isItemDeactivated()
+            && (ImGui.isKeyPressed(ImGuiKey.Enter) || ImGui.isKeyPressed(ImGuiKey.KeypadEnter));
         ImGui.sameLine();
         boolean add = ImGui.button("Add") || enter;
         if (add) addTag();

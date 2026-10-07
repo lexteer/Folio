@@ -314,7 +314,7 @@ public class LayersPanel {
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, ImGui.getStyle().getFramePaddingX(), ROW_PADDING_Y);
         ImGui.setNextItemWidth(-1f);
         if (!renameActive) ImGui.setKeyboardFocusHere();
-        ImGui.inputText("##rename", renameText, ImGuiInputTextFlags.AutoSelectAll | ImGuiInputTextFlags.EnterReturnsTrue);
+        ImGui.inputText("##rename", renameText, ImGuiInputTextFlags.AutoSelectAll);
         ImGui.popStyleVar();
 
         if (ImGui.isItemActive()) {
