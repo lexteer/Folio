@@ -36,6 +36,7 @@ public class CollisionTagsDialog {
 
     /** Which color the picker popup is editing: the name of a tag, or null for the new tag. */
     private String pickedTag;
+    private boolean openColorPicker;
     private final float[] pickedColor = new float[3];
 
     public CollisionTagsDialog(CollisionTags tags) {
@@ -58,11 +59,6 @@ public class CollisionTagsDialog {
         ImGui.setNextWindowSize(ImGui.getFontSize() * WIDTH_IN_FONT_SIZES, 0f);
         if (!ImGui.beginPopupModal(POPUP, ImGuiWindowFlags.NoResize)) return;
 
-        ImGui.pushStyleColor(ImGuiCol.Text, ImGui.getColorU32(ImGuiCol.TextDisabled));
-        ImGui.textWrapped("Shapes pick their tag from this list. Removing a tag turns its shapes into \""
-            + tags.getDefault().name() + "\".");
-        ImGui.popStyleColor();
-        ImGui.spacing();
         drawList();
         ImGui.separator();
         drawNewTagRow();
@@ -100,7 +96,7 @@ public class CollisionTagsDialog {
         if (drawSwatch("##color", tag.rgb())) {
             pickedTag = tag.name();
             setPicked(tag.rgb());
-            ImGui.openPopup(COLOR_POPUP);
+            openColorPicker = true;
         }
         ImGui.sameLine();
 
@@ -148,7 +144,7 @@ public class CollisionTagsDialog {
         if (drawSwatch("##newColor", newRgb)) {
             pickedTag = null;
             setPicked(newRgb);
-            ImGui.openPopup(COLOR_POPUP);
+            openColorPicker = true;
         }
         ImGui.sameLine();
 
@@ -179,6 +175,11 @@ public class CollisionTagsDialog {
 
     /** The picker, with OK to take the color and Cancel to leave it as it was. */
     private void drawColorPicker() {
+        // Opened here, not where the swatch is: a popup is found by the ID stack of the window that opens it.
+        if (openColorPicker) {
+            ImGui.openPopup(COLOR_POPUP);
+            openColorPicker = false;
+        }
         if (!ImGui.beginPopup(COLOR_POPUP)) return;
 
         ImGui.colorPicker3("##picker", pickedColor);
