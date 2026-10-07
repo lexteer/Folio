@@ -10,11 +10,16 @@ public class Project {
     private final Collection<ImageAsset> readOnlyAssets = Collections.unmodifiableCollection(assetsByKey.values());
 
     private final Path rootFolder;
+    private final CollisionTags collisionTags = new CollisionTags();
     private float pixelsPerMeter;
 
     public Project(Path rootFolder, float pixelsPerMeter) {
         this.rootFolder = Objects.requireNonNull(rootFolder, "rootFolder");
         setPixelsPerMeter(pixelsPerMeter);
+    }
+
+    public CollisionTags getCollisionTags() {
+        return collisionTags;
     }
 
     public Path getRootFolder() {

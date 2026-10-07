@@ -1,6 +1,8 @@
 package lex.folio.project;
 
 import lex.folio.assets.AssetFolderScanner;
+import lex.folio.model.CollisionTag;
+import lex.folio.model.CollisionTags;
 import lex.folio.model.Project;
 
 import java.io.IOException;
@@ -8,6 +10,7 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
@@ -19,6 +22,11 @@ public final class ProjectStorage {
     /** Room names cannot contain this, see the rename checks. */
     private static final String OPEN_ROOMS_SEPARATOR = "|";
     private static final String OPEN_ROOMS_SEPARATOR_REGEX = "\\|";
+    private static final String COLLISION_TAGS_KEY = "collisionTags";
+    /** Between the tags, and between the name and the color of a tag. Tag names cannot contain either. */
+    private static final String TAG_SEPARATOR = "|";
+    private static final String TAG_SEPARATOR_REGEX = "\\|";
+    private static final String TAG_COLOR_SEPARATOR = "=";
     public static final float DEFAULT_PIXELS_PER_METER = 100f;
 
     private ProjectStorage() {
@@ -50,6 +58,7 @@ public final class ProjectStorage {
 
         Project project = new Project(folder, read(file));
         AssetFolderScanner.addAssetsTo(project);
+        project.getCollisionTags().load(readCollisionTags(file));
         return project;
     }
 
@@ -71,6 +80,39 @@ public final class ProjectStorage {
         try (Writer writer = Files.newBufferedWriter(file)) {
             properties.store(writer, "Folio project");
         }
+    }
+
+    /** Remembers the collision tags, keeping the other settings of the project file. */
+    public static void writeCollisionTags(Path folder, CollisionTags tags) throws IOException {
+        Path file = folder.resolve(FILE_NAME);
+        Properties properties = readProperties(file);
+        List<String> entries = new ArrayList<>();
+        for (CollisionTag tag : tags.getAll()) {
+            entries.add(tag.name() + TAG_COLOR_SEPARATOR + String.format("%06X", tag.rgb()));
+        }
+        properties.setProperty(COLLISION_TAGS_KEY, String.join(TAG_SEPARATOR, entries));
+        try (Writer writer = Files.newBufferedWriter(file)) {
+            properties.store(writer, "Folio project");
+        }
+    }
+
+    /** The stored tags. Entries that cannot be understood are left out. */
+    private static List<CollisionTag> readCollisionTags(Path file) throws IOException {
+        String value = readProperties(file).getProperty(COLLISION_TAGS_KEY);
+        List<CollisionTag> tags = new ArrayList<>();
+        if (value == null || value.isEmpty()) return tags;
+
+        for (String entry : value.split(TAG_SEPARATOR_REGEX)) {
+            int split = entry.lastIndexOf(TAG_COLOR_SEPARATOR);
+            if (split <= 0) continue;
+            try {
+                int rgb = Integer.parseInt(entry.substring(split + 1).trim(), 16) & 0xFFFFFF;
+                tags.add(new CollisionTag(entry.substring(0, split), rgb));
+            } catch (NumberFormatException e) {
+                // A damaged entry is not worth failing to open the project for.
+            }
+        }
+        return tags;
     }
 
     private static Properties readProperties(Path file) throws IOException {

@@ -14,7 +14,7 @@ public class ToolState {
 
     public void setTool(Tool tool) {
         this.tool = Objects.requireNonNull(tool, "tool");
-        if (tool == Tool.SELECT) {
+        if (tool != Tool.PAINT) {
             armedAsset = null;
         }
     }

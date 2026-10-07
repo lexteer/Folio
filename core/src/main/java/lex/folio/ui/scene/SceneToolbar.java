@@ -10,6 +10,7 @@ import lex.folio.scene.tool.Tool;
 import lex.folio.scene.tool.ToolState;
 
 final class SceneToolbar {
+    private static final int BUTTON_COUNT = 6;
     private static final float TOP_MARGIN_IN_FONT_SIZES = 0.5f;
     private static final float PADDING = 4f;
     private static final float ROUNDING = 6f;
@@ -40,6 +41,18 @@ final class SceneToolbar {
         drawToolButton(Icons.SELECT, "Select", Tool.SELECT);
         ImGui.sameLine();
         drawToolButton(Icons.PAINT, "Paint", Tool.PAINT);
+        ImGui.sameLine();
+        drawToolButton(Icons.RECT, "Rectangle", Tool.RECT);
+        ImGui.sameLine();
+        drawToolButton(Icons.CIRCLE, "Circle", Tool.CIRCLE);
+        ImGui.sameLine();
+        drawToolButton(Icons.POLYGON, "Polygon (double click to finish)", Tool.POLYGON);
+        ImGui.sameLine();
+        drawToolButton(Icons.EDGE_CHAIN, "Edge chain (double click to finish)", Tool.EDGE_CHAIN);
+    }
+
+    float getBottom() {
+        return maxY;
     }
 
     boolean isHovered() {
@@ -61,7 +74,7 @@ final class SceneToolbar {
     }
 
     private static float getButtonsWidth() {
-        return 2f * getButtonSize() + ImGui.getStyle().getItemSpacingX();
+        return BUTTON_COUNT * getButtonSize() + ImGui.getStyle().getItemSpacingX();
     }
 
     private void drawToolButton(String icon, String name, Tool tool) {
@@ -70,7 +83,7 @@ final class SceneToolbar {
         ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, ROUNDING);
 
         float size = getButtonSize();
-        if (ImGui.button("##" + name, size, size)) {
+        if (ImGui.button("##" + tool, size, size)) {
             toolState.setTool(tool);
         }
         drawIconCentered(icon);

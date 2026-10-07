@@ -2,5 +2,9 @@ package lex.folio.scene.tool;
 
 public enum Tool {
     SELECT,
-    PAINT
+    PAINT,
+    RECT,
+    CIRCLE,
+    POLYGON,
+    EDGE_CHAIN
 }

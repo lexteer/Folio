@@ -3,30 +3,42 @@ package lex.folio.app;
 import com.badlogic.gdx.utils.Disposable;
 import imgui.ImGui;
 import imgui.flag.ImGuiMouseButton;
+import imgui.flag.ImGuiPopupFlags;
 import lex.folio.assets.AssetLibrary;
 import lex.folio.command.CommandStack;
 import lex.folio.command.DeleteObjectsCommand;
+import lex.folio.command.ItemOrder;
+import lex.folio.command.ReorderItemsCommand;
+import lex.folio.model.Layer;
 import lex.folio.model.Project;
 import lex.folio.model.Room;
 import lex.folio.model.SpriteLayer;
 import lex.folio.project.ProjectStorage;
 import lex.folio.project.RoomStorage;
+import lex.folio.scene.ActiveLayers;
 import lex.folio.scene.BoxSelect;
+import lex.folio.scene.ObjectDrag;
+import lex.folio.scene.ObjectPicker;
 import lex.folio.scene.Selection;
 import lex.folio.scene.render.SceneRenderer;
-import lex.folio.scene.sprite.SpriteDrag;
+import lex.folio.scene.shape.ShapeDraft;
+import lex.folio.scene.shape.ShapePlacer;
 import lex.folio.scene.sprite.SpriteGeometry;
 import lex.folio.scene.sprite.SpritePicker;
 import lex.folio.scene.sprite.SpritePlacer;
+import lex.folio.scene.tool.DragShapeTool;
 import lex.folio.scene.tool.PaintTool;
+import lex.folio.scene.tool.PointShapeTool;
 import lex.folio.scene.tool.SceneTool;
 import lex.folio.scene.tool.SelectTool;
 import lex.folio.scene.tool.Tool;
 import lex.folio.scene.tool.ToolController;
 import lex.folio.scene.tool.ToolState;
 import lex.folio.ui.assets.AssetsPanel;
+import lex.folio.ui.inspector.CollisionShapeInspector;
 import lex.folio.ui.inspector.InspectorPanel;
 import lex.folio.ui.inspector.SpriteInspector;
+import lex.folio.ui.layers.LayersPanel;
 import lex.folio.ui.scene.SceneInput;
 import lex.folio.ui.scene.SceneOverlay;
 import lex.folio.ui.scene.ScenePanel;
@@ -38,6 +50,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.DoubleSupplier;
 
 /** Everything that exists while one project is open: creates the parts, wires them together and draws them. */
 final class ProjectSession implements Disposable {
@@ -47,6 +60,7 @@ final class ProjectSession implements Disposable {
     private final SceneRenderer sceneRenderer;
     private final ScenePanel scenePanel;
     private final InspectorPanel inspectorPanel;
+    private final LayersPanel layersPanel;
     private final AssetsPanel assetsPanel;
     private final EditorShortcuts shortcuts;
     private final Selection selection;
@@ -70,26 +84,42 @@ final class ProjectSession implements Disposable {
         BoxSelect boxSelect = new BoxSelect();
         ToolState toolState = new ToolState();
 
-        SpriteGeometry spriteGeometry = new SpriteGeometry(assetLibrary, project.getPixelsPerMeter());
-        SpritePlacer spritePlacer = new SpritePlacer(commandStack);
-        ToolController tools = createTools(commandStack, selection, boxSelect, toolState, spriteGeometry, spritePlacer);
-
+        ActiveLayers activeLayers = new ActiveLayers();
+        ShapeDraft shapeDraft = new ShapeDraft();
         SceneViewport viewport = new SceneViewport();
+        DoubleSupplier metersPerPixel = () -> viewport.getCamera() == null ? 0 : viewport.getCamera().getMetersPerScreenPixel();
+
+        SpriteGeometry spriteGeometry = new SpriteGeometry(assetLibrary, project.getPixelsPerMeter());
+        SpritePlacer spritePlacer = new SpritePlacer(commandStack, activeLayers);
+        ShapePlacer shapePlacer = new ShapePlacer(commandStack, activeLayers, selection, project.getCollisionTags());
+        ObjectPicker picker = new ObjectPicker(new SpritePicker(spriteGeometry),
+            () -> PointShapeTool.CLICK_RADIUS_IN_PIXELS * metersPerPixel.getAsDouble());
+        ToolController tools = createTools(commandStack, selection, activeLayers, boxSelect, toolState, picker,
+            spritePlacer, shapePlacer, shapeDraft, metersPerPixel);
+
         sceneRenderer = new SceneRenderer(assetLibrary, spriteGeometry);
 
         scenePanel = new ScenePanel(savedRooms, project.getPixelsPerMeter(), ProjectSession::createRoom,
             roomStorage, errorSink, sceneRenderer, viewport,
-            new SceneOverlay(viewport, spriteGeometry, selection, boxSelect, toolState),
-            new SceneInput(viewport, tools, spritePlacer), selection);
+            new SceneOverlay(viewport, spriteGeometry, selection, boxSelect, toolState, project.getCollisionTags(),
+                shapeDraft, spritePlacer, shapePlacer),
+            new SceneInput(viewport, tools, spritePlacer, picker, selection,
+                order -> reorderSelection(commandStack, order)), selection);
         if (allSavedRooms.isEmpty()) scenePanel.openNewRoom(createRoom("main"));
-        commandStack.setChangeListener(scenePanel::roomsChanged);
+        commandStack.setChangeListener(() -> {
+            scenePanel.roomsChanged();
+            deselectUneditableObjects();
+        });
         this.selection = selection;
         this.errorSink = errorSink;
-        inspectorPanel = new InspectorPanel(selection, new SpriteInspector(commandStack));
+        project.getCollisionTags().setChangeListener(this::collisionTagsChanged);
+        inspectorPanel = new InspectorPanel(selection, new SpriteInspector(commandStack),
+            new CollisionShapeInspector(commandStack, project.getCollisionTags()));
+        layersPanel = new LayersPanel(scenePanel::getActiveRoom, activeLayers, commandStack);
         assetsPanel = AssetsPanel.create(project, assetLibrary, commandStack, toolState, errorSink,
             this::assetRenamed);
         shortcuts = new EditorShortcuts(commandStack, tools, toolState, scenePanel::saveActiveRoom,
-            () -> deleteSelection(commandStack));
+            () -> deleteSelection(commandStack), order -> reorderSelection(commandStack, order));
     }
 
     /** Deletes the selected objects of the shown room as one undoable step. */
@@ -102,6 +132,34 @@ final class ProjectSession implements Disposable {
 
         commandStack.execute(delete);
         selection.clear();
+    }
+
+    /** Moves the selected objects within their layers, as one undoable step. */
+    private void reorderSelection(CommandStack commandStack, ItemOrder order) {
+        Room room = scenePanel.getActiveRoom();
+        if (room == null || selection.isEmpty()) return;
+
+        ReorderItemsCommand reorder = ReorderItemsCommand.of(room, selection.getObjects(), order);
+        if (reorder != null) commandStack.execute(reorder);
+    }
+
+    /** Hidden and locked layers cannot be edited, and neither can what was on a layer that is gone. */
+    private void deselectUneditableObjects() {
+        Room room = scenePanel.getActiveRoom();
+        if (room == null) return;
+
+        selection.replaceWith(selection.getObjects().stream().filter(object -> {
+            Layer<?> layer = room.findLayerOf(object);
+            return layer != null && layer.isEditable();
+        }).toList());
+    }
+
+    private void collisionTagsChanged() {
+        try {
+            ProjectStorage.writeCollisionTags(project.getRootFolder(), project.getCollisionTags());
+        } catch (IOException e) {
+            errorSink.accept("Could not save the collision tags: " + e.getMessage());
+        }
     }
 
     private static boolean isRemembered(List<String> names, Room room) {
@@ -139,18 +197,24 @@ final class ProjectSession implements Disposable {
     }
 
     /** Add a tool here, and to the {@link Tool} enum, to make it available. */
-    private static ToolController createTools(CommandStack commandStack, Selection selection, BoxSelect boxSelect,
-                                              ToolState toolState, SpriteGeometry spriteGeometry,
-                                              SpritePlacer spritePlacer) {
+    private static ToolController createTools(CommandStack commandStack, Selection selection,
+                                              ActiveLayers activeLayers, BoxSelect boxSelect, ToolState toolState,
+                                              ObjectPicker picker, SpritePlacer spritePlacer, ShapePlacer shapePlacer,
+                                              ShapeDraft shapeDraft, DoubleSupplier metersPerPixel) {
         Map<Tool, SceneTool> tools = new EnumMap<>(Tool.class);
-        tools.put(Tool.SELECT, new SelectTool(new SpritePicker(spriteGeometry), selection,
-            new SpriteDrag(commandStack), boxSelect));
+        tools.put(Tool.SELECT, new SelectTool(picker, selection, activeLayers, new ObjectDrag(commandStack),
+            boxSelect));
         tools.put(Tool.PAINT, new PaintTool(toolState, spritePlacer));
+        tools.put(Tool.RECT, new DragShapeTool(Tool.RECT, shapeDraft, shapePlacer));
+        tools.put(Tool.CIRCLE, new DragShapeTool(Tool.CIRCLE, shapeDraft, shapePlacer));
+        tools.put(Tool.POLYGON, new PointShapeTool(Tool.POLYGON, shapeDraft, shapePlacer, metersPerPixel));
+        tools.put(Tool.EDGE_CHAIN, new PointShapeTool(Tool.EDGE_CHAIN, shapeDraft, shapePlacer, metersPerPixel));
         return new ToolController(toolState, tools);
     }
 
     void draw() {
         scenePanel.draw();
+        layersPanel.draw();
         inspectorPanel.draw();
         assetsPanel.draw();
         deselectWhenClickedOutsideSceneAndInspector();
@@ -161,7 +225,10 @@ final class ProjectSession implements Disposable {
     /** The inspector edits the selection, so it has to keep it. The scene handles its own clicks. */
     private void deselectWhenClickedOutsideSceneAndInspector() {
         boolean clicked = ImGui.isMouseClicked(ImGuiMouseButton.Left) || ImGui.isMouseClicked(ImGuiMouseButton.Right);
-        if (clicked && !scenePanel.isHovered() && !inspectorPanel.isHovered()) {
+        // A popup opened by one of those panels has a window of its own, so it needs to be checked too.
+        boolean popupOpen = ImGui.isPopupOpen("", ImGuiPopupFlags.AnyPopupId | ImGuiPopupFlags.AnyPopupLevel);
+        if (clicked && !scenePanel.isHovered() && !inspectorPanel.isHovered() && !layersPanel.isHovered()
+            && !popupOpen) {
             selection.clear();
         }
     }

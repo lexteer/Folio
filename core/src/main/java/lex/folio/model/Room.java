@@ -66,6 +66,25 @@ public class Room {
         return result;
     }
 
+    /** The collision layers in draw order, bottom first. */
+    public List<CollisionLayer> getCollisionLayers() {
+        List<CollisionLayer> result = new ArrayList<>();
+        for (Layer<?> layer : layers) {
+            if (layer instanceof CollisionLayer collisionLayer) {
+                result.add(collisionLayer);
+            }
+        }
+        return result;
+    }
+
+    /** The layer that has the object, or null if no layer has it. */
+    public Layer<?> findLayerOf(RoomObject object) {
+        for (Layer<?> layer : layers) {
+            if (layer.contains(object)) return layer;
+        }
+        return null;
+    }
+
     /** Points the sprites that use the asset id at the new id. Returns whether there were any. */
     public boolean replaceAssetId(String oldId, String newId) {
         boolean replaced = false;
@@ -82,6 +101,16 @@ public class Room {
 
     public void addLayer(Layer<?> layer) {
         layers.add(Objects.requireNonNull(layer, "layer"));
+    }
+
+    /** Inserts the layer so that it ends up at the index, which is where it is in the draw order. */
+    public void addLayer(int index, Layer<?> layer) {
+        layers.add(index, Objects.requireNonNull(layer, "layer"));
+    }
+
+    /** Moves the layer at one index to another, which is its index once it is out of its old place. */
+    public void moveLayer(int fromIndex, int toIndex) {
+        layers.add(toIndex, layers.remove(fromIndex));
     }
 
     public void removeLayer(Layer<?> layer) {

@@ -1,6 +1,6 @@
 package lex.folio.model;
 
-public abstract sealed class RoomObject permits Sprite {
+public abstract sealed class RoomObject permits Sprite, CollisionShape {
     private final int id;
     private float x;
     private float y;

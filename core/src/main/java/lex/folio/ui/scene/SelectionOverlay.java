@@ -2,6 +2,7 @@ package lex.folio.ui.scene;
 
 import com.badlogic.gdx.math.Vector2;
 import imgui.ImGui;
+import lex.folio.model.CollisionShape;
 import lex.folio.model.RoomObject;
 import lex.folio.model.Sprite;
 import lex.folio.scene.BoxSelect;
@@ -13,15 +14,19 @@ class SelectionOverlay {
     private static final int BOX_FILL_COLOR = UiColors.withAlpha(UiColors.ACCENT, 0.15f);
     private static final int BOX_BORDER_COLOR = UiColors.withAlpha(UiColors.ACCENT, 0.8f);
 
+    private static final float OUTLINE_THICKNESS = 2f;
+
     private final SceneViewport viewport;
     private final SpriteOutlineDrawer outlines;
+    private final ShapeDrawer shapes;
     private final Selection selection;
     private final BoxSelect boxSelect;
 
-    SelectionOverlay(SceneViewport viewport, SpriteOutlineDrawer outlines, Selection selection,
+    SelectionOverlay(SceneViewport viewport, SpriteOutlineDrawer outlines, ShapeDrawer shapes, Selection selection,
                      BoxSelect boxSelect) {
         this.viewport = viewport;
         this.outlines = outlines;
+        this.shapes = shapes;
         this.selection = selection;
         this.boxSelect = boxSelect;
     }
@@ -30,6 +35,8 @@ class SelectionOverlay {
         for (RoomObject object : selection.getObjects()) {
             if (object instanceof Sprite sprite) {
                 outlines.drawOutline(sprite, UiColors.ACCENT);
+            } else if (object instanceof CollisionShape shape) {
+                shapes.draw(shape, UiColors.ACCENT, UiColors.withAlpha(UiColors.ACCENT, 0.12f), OUTLINE_THICKNESS, true);
             }
         }
         drawBox();

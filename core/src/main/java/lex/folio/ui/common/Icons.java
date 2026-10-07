@@ -11,6 +11,18 @@ public final class Icons {
     public static final String SELECT = "\uF245";
     public static final String PAINT = "\uF1FC";
     public static final String FOLDER = "\uF07B";
+    public static final String RECT = "\uF0C8";
+    public static final String CIRCLE = "\uF111";
+    public static final String POLYGON = "\uF5EE";
+    public static final String EDGE_CHAIN = "\uF201";
+    public static final String SPRITE_LAYER = "\uF03E";
+    public static final String COLLISION_LAYER = "\uF5CB";
+    public static final String VISIBLE = "\uF06E";
+    public static final String HIDDEN = "\uF070";
+    public static final String LOCKED = "\uF023";
+    public static final String UNLOCKED = "\uF09C";
+    public static final String MORE = "\uF142";
+    public static final String REMOVE = "\uF068";
 
     /** The font file, relative to the assets folder. */
     public static final String FONT_FILE = "ui/FontAwesome-Solid.ttf";

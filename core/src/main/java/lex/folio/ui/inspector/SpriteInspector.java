@@ -1,15 +1,10 @@
 package lex.folio.ui.inspector;
 
 import com.badlogic.gdx.math.Vector2;
-import lex.folio.command.Command;
-import lex.folio.command.CommandGroup;
 import lex.folio.command.CommandStack;
-import lex.folio.command.SetValueCommand;
 import lex.folio.model.Sprite;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
@@ -90,19 +85,8 @@ public class SpriteInspector {
         sprite.setScale(scale.x, scale.y);
     }
 
-    /** Changes the property of every sprite, each from its own current value, as a single undo step. */
     private <T> void commit(List<Sprite> sprites, Function<Sprite, T> read, BiConsumer<Sprite, T> write,
                             UnaryOperator<T> change) {
-        List<Command> edits = new ArrayList<>();
-        for (Sprite sprite : sprites) {
-            T oldValue = read.apply(sprite);
-            T newValue = change.apply(oldValue);
-            if (!Objects.equals(oldValue, newValue)) {
-                edits.add(new SetValueCommand<>(v -> write.accept(sprite, v), oldValue, newValue));
-            }
-        }
-        if (edits.isEmpty()) return;
-
-        commandStack.execute(new CommandGroup(edits));
+        ObjectEdits.commit(commandStack, sprites, read, write, change);
     }
 }
