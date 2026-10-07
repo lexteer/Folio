@@ -27,7 +27,7 @@ final class DefaultDockLayout {
         ImGui.dockBuilderSplitNode(dockspaceId, ImGuiDir.Right, INSPECTOR_WIDTH_RATIO, inspectorArea, sceneArea);
 
         ImInt layersArea = new ImInt();
-        ImGui.dockBuilderSplitNode(inspectorArea.get(), ImGuiDir.Up, LAYERS_HEIGHT_RATIO, layersArea, inspectorArea);
+        ImGui.dockBuilderSplitNode(inspectorArea.get(), ImGuiDir.Down, LAYERS_HEIGHT_RATIO, layersArea, inspectorArea);
 
         ImInt assetsArea = new ImInt();
         ImGui.dockBuilderSplitNode(sceneArea.get(), ImGuiDir.Down, ASSETS_HEIGHT_RATIO, assetsArea, sceneArea);
