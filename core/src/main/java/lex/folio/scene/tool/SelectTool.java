@@ -1,33 +1,37 @@
 package lex.folio.scene.tool;
 
+import lex.folio.model.Layer;
 import lex.folio.model.Room;
 import lex.folio.model.RoomObject;
-import lex.folio.model.Sprite;
+import lex.folio.scene.ActiveLayers;
 import lex.folio.scene.BoxSelect;
+import lex.folio.scene.ObjectDrag;
+import lex.folio.scene.ObjectPicker;
 import lex.folio.scene.Selection;
-import lex.folio.scene.sprite.SpriteDrag;
-import lex.folio.scene.sprite.SpritePicker;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/** Click to select, shift or ctrl click to add to the selection, drag empty space to box select, drag sprites to move. */
+/** Click to select, shift or ctrl click to add to the selection, drag empty space to box select, drag objects to move. */
 public class SelectTool implements SceneTool {
-    private final SpritePicker spritePicker;
+    private final ObjectPicker picker;
     private final Selection selection;
-    private final SpriteDrag spriteDrag;
+    private final ActiveLayers activeLayers;
+    private final ObjectDrag drag;
     private final BoxSelect boxSelect;
 
     private Room room;
     /** What the selection was when the box started, which the box adds to. */
     private List<RoomObject> selectionBeforeBox = List.of();
-    /** Set when a plain click lands on one of several selected sprites: if it was no drag, only it stays selected. */
-    private Sprite clickedInGroup;
+    /** Set when a plain click lands on one of several selected objects: if it was no drag, only it stays selected. */
+    private RoomObject clickedInGroup;
 
-    public SelectTool(SpritePicker spritePicker, Selection selection, SpriteDrag spriteDrag, BoxSelect boxSelect) {
-        this.spritePicker = spritePicker;
+    public SelectTool(ObjectPicker picker, Selection selection, ActiveLayers activeLayers, ObjectDrag drag,
+                      BoxSelect boxSelect) {
+        this.picker = picker;
         this.selection = selection;
-        this.spriteDrag = spriteDrag;
+        this.activeLayers = activeLayers;
+        this.drag = drag;
         this.boxSelect = boxSelect;
     }
 
@@ -36,21 +40,24 @@ public class SelectTool implements SceneTool {
         this.room = room;
         clickedInGroup = null;
 
-        Sprite sprite = spritePicker.findSpriteAt(room, worldX, worldY);
-        if (sprite == null) {
+        RoomObject object = picker.findAt(room, worldX, worldY);
+        if (object == null) {
             startBox(worldX, worldY, additive);
             return;
         }
 
         if (additive) {
-            selection.toggle(sprite);
-            if (!selection.contains(sprite)) return;
-        } else if (!selection.contains(sprite)) {
-            selection.selectOnly(sprite);
+            selection.toggle(object);
+            if (!selection.contains(object)) return;
+        } else if (!selection.contains(object)) {
+            selection.selectOnly(object);
         } else if (selection.getObjects().size() > 1) {
-            clickedInGroup = sprite;
+            clickedInGroup = object;
         }
-        spriteDrag.start(getSelectedSprites(), worldX, worldY);
+        // New objects go to the layer of what was last picked.
+        Layer<?> layer = room.findLayerOf(object);
+        if (layer != null) activeLayers.set(room, layer);
+        drag.start(selection.getObjects(), worldX, worldY);
     }
 
     private void startBox(float worldX, float worldY, boolean additive) {
@@ -60,23 +67,15 @@ public class SelectTool implements SceneTool {
         boxSelect.start(worldX, worldY);
     }
 
-    private List<Sprite> getSelectedSprites() {
-        List<Sprite> sprites = new ArrayList<>();
-        for (RoomObject object : selection.getObjects()) {
-            if (object instanceof Sprite sprite) sprites.add(sprite);
-        }
-        return sprites;
-    }
-
     @Override
     public boolean isDragging() {
-        return spriteDrag.isActive() || boxSelect.isActive();
+        return drag.isActive() || boxSelect.isActive();
     }
 
     @Override
     public void drag(float worldX, float worldY) {
-        if (spriteDrag.isActive()) {
-            spriteDrag.moveTo(worldX, worldY);
+        if (drag.isActive()) {
+            drag.moveTo(worldX, worldY);
         } else if (boxSelect.isActive()) {
             boxSelect.moveTo(worldX, worldY);
             selectBoxContents();
@@ -85,16 +84,16 @@ public class SelectTool implements SceneTool {
 
     private void selectBoxContents() {
         List<RoomObject> result = new ArrayList<>(selectionBeforeBox);
-        for (Sprite sprite : spritePicker.findSpritesIn(room,
+        for (RoomObject object : picker.findIn(room,
             boxSelect.getMinX(), boxSelect.getMinY(), boxSelect.getMaxX(), boxSelect.getMaxY())) {
-            if (!result.contains(sprite)) result.add(sprite);
+            if (!result.contains(object)) result.add(object);
         }
         selection.replaceWith(result);
     }
 
     @Override
     public void release() {
-        boolean moved = spriteDrag.finish();
+        boolean moved = drag.finish();
         if (clickedInGroup != null && !moved) {
             selection.selectOnly(clickedInGroup);
         }
@@ -104,7 +103,7 @@ public class SelectTool implements SceneTool {
 
     @Override
     public void cancel() {
-        spriteDrag.cancel();
+        drag.cancel();
         clickedInGroup = null;
         if (boxSelect.isActive()) {
             selection.replaceWith(selectionBeforeBox);

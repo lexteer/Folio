@@ -24,8 +24,13 @@ class SceneToolInput {
 
     void handle(Room room, boolean hovered) {
         Vector2 world = viewport.getMouseWorld();
+        tools.update(room);
+        if (hovered) tools.hover(world.x, world.y);
         if (hovered && ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
             tools.press(room, world.x, world.y, isAdditive());
+        }
+        if (hovered && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left)) {
+            tools.doubleClick(room, world.x, world.y);
         }
         if (!tools.isDragging()) return;
 

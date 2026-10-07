@@ -11,13 +11,29 @@ public interface SceneTool {
         return false;
     }
 
+    /** Whether the tool is part way through something that takes several clicks, such as a polygon. */
+    default boolean isBuilding() {
+        return false;
+    }
+
+    /** The mouse is over the scene, with no button involved. */
+    default void hover(float worldX, float worldY) {
+    }
+
+    default void doubleClick(Room room, float worldX, float worldY) {
+    }
+
+    /** Completes what {@link #isBuilding} says is in progress, if it can be completed. */
+    default void finish() {
+    }
+
     default void drag(float worldX, float worldY) {
     }
 
     default void release() {
     }
 
-    /** Abandons the interaction in progress, undoing any preview of it. */
+    /** Abandons the interaction in progress, whether {@link #isDragging} or {@link #isBuilding}. */
     default void cancel() {
     }
 }

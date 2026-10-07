@@ -5,7 +5,15 @@ import com.badlogic.gdx.utils.JsonReader;
 import com.badlogic.gdx.utils.JsonValue;
 import com.badlogic.gdx.utils.JsonWriter;
 import com.badlogic.gdx.utils.SerializationException;
+import lex.folio.model.CircleShape;
+import lex.folio.model.CollisionLayer;
+import lex.folio.model.CollisionShape;
+import lex.folio.model.CollisionTags;
+import lex.folio.model.EdgeChainShape;
 import lex.folio.model.Layer;
+import lex.folio.model.PointShape;
+import lex.folio.model.PolygonShape;
+import lex.folio.model.RectShape;
 import lex.folio.model.Room;
 import lex.folio.model.Sprite;
 import lex.folio.model.SpriteLayer;
@@ -41,6 +49,7 @@ final class RoomJson {
     private static void writeLayer(JsonWriter json, Layer<?> layer) throws IOException {
         switch (layer) {
             case SpriteLayer spriteLayer -> writeSpriteLayer(json, spriteLayer);
+            case CollisionLayer collisionLayer -> writeCollisionLayer(json, collisionLayer);
         }
     }
 
@@ -59,6 +68,51 @@ final class RoomJson {
             writeSprite(json, sprite);
         }
         json.pop();
+        json.pop();
+    }
+
+    private static void writeCollisionLayer(JsonWriter json, CollisionLayer layer) throws IOException {
+        json.object();
+        json.set("type", "collision");
+        json.set("id", layer.getId());
+        json.set("name", layer.getName());
+        json.set("visible", layer.isVisible());
+        json.set("locked", layer.isLocked());
+        json.array("items");
+        for (CollisionShape shape : layer.getItems()) {
+            writeShape(json, shape);
+        }
+        json.pop();
+        json.pop();
+    }
+
+    private static void writeShape(JsonWriter json, CollisionShape shape) throws IOException {
+        json.object();
+        json.set("shape", switch (shape) {
+            case RectShape rect -> "rect";
+            case CircleShape circle -> "circle";
+            case PolygonShape polygon -> "polygon";
+            case EdgeChainShape chain -> "chain";
+        });
+        json.set("id", shape.getId());
+        json.set("x", shape.getX());
+        json.set("y", shape.getY());
+        json.set("tag", shape.getTag());
+        switch (shape) {
+            case RectShape rect -> {
+                json.set("width", rect.getWidth());
+                json.set("height", rect.getHeight());
+            }
+            case CircleShape circle -> json.set("radius", circle.getRadius());
+            case PointShape points -> {
+                json.array("points");
+                for (int i = 0; i < points.getPointCount(); i++) {
+                    json.value(points.getPointX(i));
+                    json.value(points.getPointY(i));
+                }
+                json.pop();
+            }
+        }
         json.pop();
     }
 
@@ -94,8 +148,14 @@ final class RoomJson {
 
     private static Layer<?> readLayer(JsonValue json) {
         String type = json.getString("type");
-        if (!type.equals("sprite")) throw new IllegalArgumentException("Unknown layer type: " + type);
+        return switch (type) {
+            case "sprite" -> readSpriteLayer(json);
+            case "collision" -> readCollisionLayer(json);
+            default -> throw new IllegalArgumentException("Unknown layer type: " + type);
+        };
+    }
 
+    private static SpriteLayer readSpriteLayer(JsonValue json) {
         SpriteLayer layer = new SpriteLayer(json.getInt("id"), json.getString("name"));
         layer.setVisible(json.getBoolean("visible", true));
         layer.setLocked(json.getBoolean("locked", false));
@@ -105,6 +165,31 @@ final class RoomJson {
             layer.add(readSprite(item));
         }
         return layer;
+    }
+
+    private static CollisionLayer readCollisionLayer(JsonValue json) {
+        CollisionLayer layer = new CollisionLayer(json.getInt("id"), json.getString("name"));
+        layer.setVisible(json.getBoolean("visible", true));
+        layer.setLocked(json.getBoolean("locked", false));
+        for (JsonValue item : json.get("items")) {
+            layer.add(readShape(item));
+        }
+        return layer;
+    }
+
+    private static CollisionShape readShape(JsonValue json) {
+        int id = json.getInt("id");
+        float x = json.getFloat("x");
+        float y = json.getFloat("y");
+        String tag = json.getString("tag", CollisionTags.DEFAULT_NAME);
+        String shape = json.getString("shape");
+        return switch (shape) {
+            case "rect" -> new RectShape(id, x, y, json.getFloat("width"), json.getFloat("height"), tag);
+            case "circle" -> new CircleShape(id, x, y, json.getFloat("radius"), tag);
+            case "polygon" -> new PolygonShape(id, x, y, json.get("points").asFloatArray(), tag);
+            case "chain" -> new EdgeChainShape(id, x, y, json.get("points").asFloatArray(), tag);
+            default -> throw new IllegalArgumentException("Unknown shape: " + shape);
+        };
     }
 
     private static Sprite readSprite(JsonValue json) {

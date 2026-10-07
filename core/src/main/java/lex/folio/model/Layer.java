@@ -5,7 +5,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-public abstract sealed class Layer<T extends RoomObject> permits SpriteLayer {
+public abstract sealed class Layer<T extends RoomObject> permits SpriteLayer, CollisionLayer {
     private final int id;
     private String name;
     private boolean visible = true;
@@ -66,5 +66,19 @@ public abstract sealed class Layer<T extends RoomObject> permits SpriteLayer {
 
     public void remove(T item) {
         items.remove(item);
+    }
+
+    public boolean contains(RoomObject object) {
+        return items.contains(object);
+    }
+
+    /** Replaces the draw order, which must hold the same items as now. */
+    public void setOrder(List<T> order) {
+        if (order.size() != items.size() || !items.containsAll(order)) {
+            throw new IllegalArgumentException("The new order must have the same items");
+        }
+        List<T> copy = List.copyOf(order);
+        items.clear();
+        items.addAll(copy);
     }
 }
